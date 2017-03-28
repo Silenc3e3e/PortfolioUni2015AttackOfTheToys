@@ -1,0 +1,154 @@
+fileFormatVersion: 2
+guid: 6fa287e808a14ff4db7993a5a5cb2b6e
+timeCreated: 1447891845
+licenseType: Pro
+TextureImporter:
+  fileIDToRecycleName:
+    21300000: PlayButton
+    21300002: bossHBar&mainPauseMenuSprites_1
+    21300004: Skull
+    21300006: bossHBar&mainPauseMenuSprites_3
+    21300008: bossHBar&mainPauseMenuSprites_4
+    21300010: Door
+    21300012: Arrow
+    21300014: Cross
+    21300016: LockedSymbol
+    21300018: BossHealthBar
+    21300020: BossHealthBarMask
+    21300022: bossHBar&mainPauseMenuSprites_11
+    21300024: bossHBar&mainPauseMenuSprites_12
+    21300026: bossHBar&mainPauseMenuSprites_13
+    21300028: bossHBar&mainPauseMenuSprites_14
+    21300030: bossHBar&mainPauseMenuSprites_15
+    21300032: bossHBar&mainPauseMenuSprites_16
+    21300034: CurvedBorders
+  serializedVersion: 2
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    linearTexture: 0
+    correctGamma: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: .25
+    normalMapFilter: 0
+  isReadable: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 0
+  cubemapConvolution: 0
+  cubemapConvolutionSteps: 8
+  cubemapConvolutionExponent: 1.5
+  seamlessCubemap: 0
+  textureFormat: -1
+  maxTextureSize: 2048
+  textureSettings:
+    filterMode: -1
+    aniso: 16
+    mipBias: -1
+    wrapMode: 1
+  nPOTScale: 0
+  lightmap: 0
+  rGBM: 0
+  compressionQuality: 50
+  allowsAlphaSplitting: 0
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: .5, y: .5}
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spritePixelsToUnits: 500
+  alphaIsTransparency: 1
+  textureType: 8
+  buildTargetSettings: []
+  spriteSheet:
+    sprites:
+    - name: CurvedBorders
+      rect:
+        serializedVersion: 2
+        x: 24
+        y: 1032
+        width: 1000
+        height: 1000
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 116, y: 100, z: 119, w: 106}
+    - name: Skull
+      rect:
+        serializedVersion: 2
+        x: 1116
+        y: 1592
+        width: 504
+        height: 403
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+    - name: Door
+      rect:
+        serializedVersion: 2
+        x: 1694
+        y: 1706
+        width: 282
+        height: 294
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+    - name: Arrow
+      rect:
+        serializedVersion: 2
+        x: 1140
+        y: 1055
+        width: 482
+        height: 470
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+    - name: Cross
+      rect:
+        serializedVersion: 2
+        x: 1768
+        y: 1444
+        width: 230
+        height: 232
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+    - name: LockedSymbol
+      rect:
+        serializedVersion: 2
+        x: 1692
+        y: 739
+        width: 292
+        height: 437
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+    - name: BossHealthBar
+      rect:
+        serializedVersion: 2
+        x: 58
+        y: 438
+        width: 1810
+        height: 250
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+    - name: BossHealthBarMask
+      rect:
+        serializedVersion: 2
+        x: 72
+        y: 78
+        width: 1768
+        height: 223
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+  spritePackingTag: 
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

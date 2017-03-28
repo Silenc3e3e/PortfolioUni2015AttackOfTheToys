@@ -1,0 +1,841 @@
+﻿using UnityEngine;
+using System.Collections;
+using UnityEngine.UI;
+using UnityStandardAssets.CrossPlatformInput;
+using UnityEngine.EventSystems;
+
+//following code gained from "Top Down Shooter- Unity tutorial series (01)"
+
+[RequireComponent(typeof(CharacterController))]
+public class PlayerControl : MonoBehaviour {
+
+	#region Animation Controller Thing
+	public Animator PlayerAnimator;
+	private int HashRunning;
+	private int HashAttack;
+	private int HashAttackMultiplier;
+	private int HashKnockback;
+	private int HashKnockbackMultiplier;
+	private int HashEvadeFloatMultiplier;
+	private int HashEvading;
+	private int HashWeaponNum;
+	private int HashSecondAttack;
+	#endregion
+
+	#region Variables
+		#region Player State
+		public enum State
+		{
+			Moving,
+			Action,
+			Knockback,
+			Evading,
+			Dead
+		}
+		public State MyState = State.Moving;
+		
+		public string currentState{
+			get{
+				switch(MyState){
+				case State.Action:
+					return "performing an Action";
+				case State.Knockback:
+					return "being Knocked back";
+				case State.Moving:
+					return "Moving";
+				case State.Evading:
+					return "Evading";
+				case State.Dead:
+					return "Dead";
+				default:
+					return "Unknown";
+				}
+			}
+		}
+		#endregion
+
+
+		#region Movement
+		//public bool UsingController=false;
+		
+		public float rotationSpeed = 450;
+		
+		public float walkSpeed = 5;
+		
+		public float runSpeed = 8;
+		public enum InputSwitch
+		{
+			Computer,
+			Controller,
+			Android
+		}
+		public InputSwitch MyInput = InputSwitch.Computer;
+		#endregion
+
+		#region Evasion
+		public float EvadeDuration;
+		public float EvadeDistance;
+		public GameObject DustKick;
+		private Vector3 EvadeDirection;
+		private float EvasionUsed=0f;
+		private int EvasionIntUsed=0;
+		public float EvasionRechargeSuppresion=1f;
+		public Animator[] RunIcons;
+		#endregion	
+
+			
+		//Vector for center of the screen. Used for direction of mouse relative to center
+		private Vector2 ScreenCenter;
+
+		//Death cam position (and rotation)
+		public Transform DeathCamTrans;
+		public Transform DeathCamLookTarget;
+
+
+
+		#region Audio
+		public AudioHandler AudioControlScript;
+		#endregion
+
+		#region health
+		
+		public float maxHealth;
+		public float currentHealth;
+		
+		public float PublicCurrentHealth{
+			get{
+				return currentHealth;
+			}
+		}
+		public Slider healthSlider;
+		public Slider EvadeSlider;
+		#endregion
+		
+		
+		#region DOT
+		private bool DOTActive = false;
+		private float PreviousTime;
+		private float DOTTimeRemaining;
+		private float DOTDamage;
+		private float DOTDamageDivide;
+		#endregion
+
+		//for knockback system only
+		#region KnockBack
+		private float IEKnockBackTime;
+		public float PublicIEKnockBackTime{
+			get{
+				return IEKnockBackTime;
+			}
+		}
+		private Vector3 IEKnockBackAttacker;
+		private float IEKnockbackDistance;
+		
+		[Range(0.0f,2.0f)]public float MaxKnockbackTime=0.5f;
+		private bool KBIsActive = false;
+		public bool PublicKBIsActive{
+			get{
+				return KBIsActive;
+			}
+		}
+
+		public float InvincibilityDuration;
+		private float CurrentInvincibilityDuration=0f;
+		#endregion
+
+		// System
+		private Quaternion targetRotation;
+
+		// Componenents
+		private CharacterController controller;
+		
+		#region attacking
+		
+//		public float AttackDuration;
+		[Range(0.0f,1.0f)]
+		public float SecondAttackStrikeTime;
+		public float SecondAttackDuration;
+
+		//this is the direction the attack box is currently facing
+		public GameObject AttackRotation;
+		//public StoreObjectsInCollider AttackBox;
+		//
+		//public float AttackDamage;
+		//to replace seperate variables holding the current weapon's data
+		public WeaponClass CurrentWeapon;
+		//
+		//public float KnockbackHitDuration;
+		//
+		//public float KnockbackHitDistance;
+		private Vector3 ABCurrentFacing;
+		//used exclusive to attack coroutine
+		//	private bool AttackCoroutineRunning = false;
+
+		public GameObject prefabToSpawn;
+		public Transform RangedAttackSpawnPoint;
+		#endregion
+
+
+		private GameObject HUDOBJ;
+		public GameObject PrefabHUDOBJ;
+
+//		#region attacking
+//		public float attackDamageWepOne;
+//		public float attackDamageWepTwo;
+//		#endregion
+
+
+	#endregion
+
+	private void Start(){
+		//Movement
+		controller = GetComponent<CharacterController> ();
+		EvadeDirection= transform.rotation * Vector3.up;
+
+//		agent = GetComponent<NavMeshAgent> ();
+		//Health
+		currentHealth = maxHealth;
+
+		//sets the vector for the center of the screen
+		ScreenCenter = new Vector2 (Screen.width/2, Screen.height/2);
+
+		//Audio
+		if(AudioControlScript==null){
+			AudioControlScript=GetComponent<AudioHandler>();
+		}
+
+
+		//animator
+		HashRunning = Animator.StringToHash ("Running");
+		HashAttack = Animator.StringToHash ("Attack");
+		HashAttackMultiplier = Animator.StringToHash ("AttackMultiplier");
+		HashKnockback=Animator.StringToHash ("Knockback");
+		HashKnockbackMultiplier=Animator.StringToHash ("KnockbackMultiplier");
+		HashEvadeFloatMultiplier=Animator.StringToHash ("EvadeFloatMultiplier");
+		HashEvading=Animator.StringToHash ("Evading");
+		HashWeaponNum = Animator.StringToHash ("WeaponNumber");
+		HashSecondAttack = Animator.StringToHash ("SecondAttack");
+
+		//UI
+		CheckAllUIComponents();
+	}
+	
+	#region private functions
+	private void Update ()
+	{
+//		if(KBIsActive){
+//			Debug.LogError("Passed");
+//		}
+		if (MyState == State.Moving) {
+			#region Movement
+			Vector3 input;
+			if(MyInput==InputSwitch.Android){
+				input = new Vector3 (CrossPlatformInputManager.GetAxisRaw ("Horizontal"), 0, CrossPlatformInputManager.GetAxisRaw ("Vertical"));
+				//Debug.Log("Android Horizontal input = "+CrossPlatformInputManager.GetAxis ("Horizontal"));
+			}
+			else
+				input = new Vector3 (Input.GetAxisRaw ("Horizontal"), 0, Input.GetAxisRaw ("Vertical"));
+
+
+
+			Vector3 secondInput;
+			if(MyInput==InputSwitch.Computer){
+				Vector2 MousePos=new Vector2(Input.mousePosition.x,Input.mousePosition.y);
+				secondInput=new Vector3 (MousePos.x,0,MousePos.y)-new Vector3 (ScreenCenter.x,0,ScreenCenter.y);
+			}
+			else if(MyInput==InputSwitch.Controller)
+				secondInput=new Vector3 (Input.GetAxisRaw ("Horizontal2"),0,Input.GetAxisRaw ("Vertical2"));
+			else{
+				secondInput=input;
+			}
+
+
+			//Making the character (animated mesh) turn the way he is moving
+			if (input != Vector3.zero) {
+				targetRotation = Quaternion.LookRotation (input);
+				transform.eulerAngles = Vector3.up * Mathf.MoveTowardsAngle (transform.eulerAngles.y, targetRotation.eulerAngles.y, rotationSpeed * Time.deltaTime);
+			}
+
+			//Aiming the attack box
+			if (secondInput != Vector3.zero) {
+				//Update attack box area
+				ABCurrentFacing = secondInput;
+				//Debug.Log("ABCurrentFacing = "+ABCurrentFacing);
+			}
+			//I THINK this should be else if, instead of if
+			else if (input != Vector3.zero && MyInput==InputSwitch.Android) {
+				ABCurrentFacing=input;
+				//Debug.LogError("Player: SecondInput = 0. input !=0. ABCF=input");
+			}
+
+			Vector3 motion = input;
+			if(motion.normalized.magnitude!=0f)
+				EvadeDirection=motion.normalized;
+
+			motion *= (Mathf.Abs (input.x) == 1 & Mathf.Abs (input.z) == 1) ? .7f : 1;
+			if(MyInput==InputSwitch.Android){
+				if(motion.magnitude>0f){
+					motion.Normalize();
+				}
+			}
+			motion *= (Input.GetButton ("Run")) ? runSpeed : walkSpeed;
+			motion += Vector3.up * -8;
+
+			//Debug.Log("Motion: "+motion);
+			controller.Move (motion * Time.deltaTime);
+
+			//Animator running control
+			if(input.magnitude==0.0f)
+				PlayerAnimator.SetBool(HashRunning,false);
+			else
+				PlayerAnimator.SetBool(HashRunning,true);
+			#endregion
+			#region initiating action
+			//Attacking
+//			ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+//			
+//			if(Physics.Raycast(ray, out hit))
+//			{
+//				Debug.Log(hit.collider.gameObject.name);
+//			}
+			if (Input.GetAxis ("Attack1") == 1
+		    && MyState== State.Moving
+		    && !EventSystem.current.IsPointerOverGameObject()
+		    && MyInput!=InputSwitch.Android) {
+				MyState = State.Action;
+				//animator turn off running
+				PlayerAnimator.SetBool(HashRunning,false);
+
+				StartCoroutine (AttackCoRout ());
+			}
+			
+			//Evade
+			//Debug.Log("Evade is "+Input.GetAxis("Evade"));
+			if(Input.GetAxis("Evade")==1 && MyState== State.Moving && EvasionUsed <= 2f){
+				StartCoroutine(Evading());
+			}
+			#endregion
+		}
+
+		//attack box update rotation
+		if(ABCurrentFacing!=Vector3.zero)
+			AttackRotation.transform.rotation = Quaternion.LookRotation (ABCurrentFacing);
+	
+
+		float TimePassed=Time.time-PreviousTime;
+		PreviousTime=Time.time;
+		//knockback Invincibility
+		if(CurrentInvincibilityDuration>0.0f)
+			CurrentInvincibilityDuration-=TimePassed;
+
+
+		#region DOT
+		if(DOTActive && MyState!=State.Dead){
+			DOTTimeRemaining-=TimePassed;
+			if(DOTTimeRemaining<0.0f)
+				TimePassed+=DOTTimeRemaining;
+			Damage((DOTDamage/DOTDamageDivide)*TimePassed,false);
+		}
+		#endregion
+
+
+		//evasion recharge
+		if (EvasionUsed > 0 && MyState!=State.Evading) {
+			EvasionUsed-=TimePassed/EvasionRechargeSuppresion;
+			if(EvasionIntUsed != Mathf.CeilToInt( EvasionUsed)){
+				EvasionIntUsed = Mathf.CeilToInt( EvasionUsed);
+				foreach(Animator current in RunIcons){
+					if(current!=null)
+						current.SetInteger (Animator.StringToHash ("CurrentEvades"),3-EvasionIntUsed);
+				}
+			}
+			
+			//Audio
+			if(EvasionUsed>0f){
+				AudioControlScript.UpdatePanting(Mathf.Sqrt(EvasionUsed)*46.1880215f);
+			}else
+				AudioControlScript.UpdatePanting(0f);
+		}
+		//lerping the evade bar
+		if(EvadeSlider.value!=3-EvasionUsed)
+			EvadeSlider.value=Mathf.Lerp(EvadeSlider.value, 3-EvasionUsed,Time.deltaTime*2);
+
+		//Lerping the health bar
+		if(healthSlider.value!=currentHealth / maxHealth)
+			healthSlider.value = Mathf.Lerp(healthSlider.value,currentHealth / maxHealth,Time.deltaTime);
+
+
+
+	}
+
+	IEnumerator AttackCoRout ()
+	{
+		//Instantiate (hitthing2, transform.position, transform.rotation);
+
+
+
+		//Making the character face where he is attacking
+		//targetRotation = Quaternion.LookRotation (ABCurrentFacing);
+		transform.rotation = Quaternion.LookRotation (ABCurrentFacing);
+
+		//animator control
+		PlayerAnimator.SetInteger (HashWeaponNum,CurrentWeapon.ID);
+		PlayerAnimator.SetFloat (HashAttackMultiplier, CurrentWeapon.AttackDuration/1.05f);
+		PlayerAnimator.SetTrigger (HashAttack);
+
+		float WaitTime=CurrentWeapon.StrikeTime*CurrentWeapon.AttackDuration;
+		//wait till strike point. Done like this so audio can be played at a good point in time.
+		//3 and 2 5ths seemed to be the best universal timing.
+		yield return new WaitForSeconds (WaitTime*3/5);
+		//audio attack play on Stike point atm
+		AudioControlScript.PlayAttack();
+		yield return new WaitForSeconds(WaitTime*2/5);
+
+		//Debug.LogError ("Wait time1 "+CurrentWeapon.StrikeTime * CurrentWeapon.AttackDuration);
+
+
+
+//		if(AttackBox.ReturnObjectList().Count!=0)
+
+		//the following is used in case the weapon is the sword
+		bool isSword=false;
+		if(CurrentWeapon.Name=="Sword"){
+			isSword=true;
+		}
+		if(CurrentWeapon.AttackAreaScript!=null){
+			foreach (GameObject currentObj in CurrentWeapon.AttackAreaScript.ReturnObjectList()) {
+	//			Debug.LogError("ATTACK hit point");
+				if(currentObj
+				   &&currentObj.tag=="Enemy"
+				   &&!Physics.Linecast(transform.position,currentObj.transform.position,1<< LayerMask.NameToLayer("Environment"))
+				   &&CurrentWeapon.Name!="Bow"){
+
+		
+					Enemy thisObjectsEnemyScript=currentObj.GetComponent<Enemy>();
+
+					//I KNOW I shouldn't use nesting. I know a solution. but this is a one off, and I can't be bothered doing it properly
+					if(thisObjectsEnemyScript!=null){
+						if(!isSword){
+							thisObjectsEnemyScript.knockback(CurrentWeapon.KnockbackDuration,CurrentWeapon.KnockbackDuration,transform.position);
+							thisObjectsEnemyScript.Damage(CurrentWeapon.damage);
+						}
+						else{
+							thisObjectsEnemyScript.knockback(CurrentWeapon.KnockbackDuration,.5f,transform.position,true,true,false);
+							thisObjectsEnemyScript.Damage(CurrentWeapon.damage*2/3);
+						}
+					}
+					else {
+						Boss BossScript=currentObj.GetComponent<Boss>();
+						if(BossScript!=null)
+							if(!isSword){
+								//BossScript.knockback(CurrentWeapon.KnockbackDuration,CurrentWeapon.KnockbackDuration,transform.position);
+								BossScript.Damage(CurrentWeapon.damage);
+							}
+							else{
+								//BossScript.knockback(CurrentWeapon.KnockbackDuration,.5f,transform.position,true,true,false);
+								BossScript.Damage(CurrentWeapon.damage*2/3);
+							}
+					}
+				}
+			}
+		}else if (CurrentWeapon.Name=="Bow"){
+			GameObject spawnedPrefab = (GameObject)Instantiate(prefabToSpawn,RangedAttackSpawnPoint.position,RangedAttackSpawnPoint.rotation);
+			PlayerArrowScript currentPrefabPAS=spawnedPrefab.GetComponent<PlayerArrowScript>();
+			if(currentPrefabPAS!=null){
+				currentPrefabPAS.SetDamageAndKnockback(CurrentWeapon.damage,CurrentWeapon.KnockbackDuration,CurrentWeapon.KnockbackDistance);
+				currentPrefabPAS.ResetFlight(CurrentWeapon.RangedProjectileSpeed,CurrentWeapon.RangedProjectileDistance,Quaternion.LookRotation(ABCurrentFacing),transform.position);
+				//Debug.Log("Sent to arrow ABCurrentFacing = "+ABCurrentFacing);
+			}else{
+				Debug.LogError("WARNING. MISSING PLAYER ARROW SCRIPT ON PROJECTILE");
+			}
+		}
+
+		//second attack for sword
+		if (CurrentWeapon.Name == "Sword" && MyState==State.Action) {
+		//	Debug.LogError("It is a sword!!!!!!!!");
+			bool SecondAttack = false;
+			float timer = (1 - CurrentWeapon.StrikeTime) * SecondAttackDuration;
+		//	Debug.LogError("Timer is: "+timer);
+			float prevtime = Time.time;
+
+			//loops while detecting if attack button gets held down here
+			while (timer>0 && !SecondAttack) {
+				//Debug.Log("While Running "+timer);
+				if (Input.GetAxis ("Attack1") == 1){
+					SecondAttack = true;
+					PlayerAnimator.SetTrigger(HashSecondAttack);
+				}
+				timer -= Time.time - prevtime;
+				prevtime = Time.time;
+				yield return null;
+			}
+			//Debug.LogError("While finished");
+			if (timer > 0) {
+				//Debug.LogError ("Wait time2 " + timer);
+				yield return new WaitForSeconds (timer);
+			}
+			//Debug.LogError("Second timer finished");
+			if (SecondAttack) {
+				//audio attack play before Stike point atm
+				AudioControlScript.PlayAttack(true);
+
+			//	Debug.LogError ("Wait time3 " + SecondAttackDuration * SecondAttackStrikeTime);
+				yield return new WaitForSeconds (SecondAttackDuration * SecondAttackStrikeTime);
+
+
+				foreach (GameObject currentObj in CurrentWeapon.AttackAreaScript.ReturnObjectList()) {
+					if (currentObj && currentObj.tag == "Enemy" && !Physics.Linecast (transform.position, currentObj.transform.position, 1 << LayerMask.NameToLayer ("Environment"))) {
+						Enemy thisObjectsEnemyScript = currentObj.GetComponent<Enemy> ();
+						if(thisObjectsEnemyScript!=null){
+							thisObjectsEnemyScript.knockback (CurrentWeapon.KnockbackDuration, CurrentWeapon.KnockbackDistance-.5f, transform.position);
+							thisObjectsEnemyScript.Damage (CurrentWeapon.damage/3);
+						}else{
+							Boss BossScript=currentObj.GetComponent<Boss>();
+							if(BossScript!=null)
+								BossScript.Damage(CurrentWeapon.damage/3);
+						}
+					}
+				}
+				//Debug.LogError ("Wait time4 " + (1 - SecondAttackStrikeTime) * SecondAttackDuration);
+				yield return new WaitForSeconds ((1 - SecondAttackStrikeTime) * SecondAttackDuration);
+			}
+			//Debug.LogError("Drop point");
+		} else {
+			//Debug.LogError("IT IS NOT A SWORD!!!!");
+			//Debug.LogError ("Wait time5 "+(1 - CurrentWeapon.StrikeTime) * CurrentWeapon.AttackDuration);
+			yield return new WaitForSeconds ((1 - CurrentWeapon.StrikeTime) * CurrentWeapon.AttackDuration);
+		}
+
+		//check to see if attack button still held.
+		//the following was cut out due to the player not turning after attacking
+//		if (Input.GetAxis ("Attack1") == 1) {
+//			StartCoroutine (AttackCoRout ());
+//		} else {
+		if (MyState != State.Dead) {
+		//	Debug.LogError("We are not deads");
+			MyState = State.Moving;
+		}
+		//}
+		//PlayerAnimator.SetBool (HashAttack, false);
+
+	}
+
+	IEnumerator KnockBackCoRout ()
+	{
+		//Debug.LogError ("Being knocked back");
+		float timer;
+		bool extraWait = false;
+		float DistanceDivider;
+		if (IEKnockBackTime > MaxKnockbackTime) {
+			timer = MaxKnockbackTime;
+			DistanceDivider = MaxKnockbackTime;
+			extraWait = true;
+		} else {
+			timer = IEKnockBackTime;
+			DistanceDivider = IEKnockBackTime;
+		}
+
+		//Animation related
+		//Debug.LogError (IEKnockBackTime + " The thing that I'm checking");
+		float multiplier = 0.11f/MaxKnockbackTime;//Was IEKnockBackTime instead of MaxKnockbackTime
+		multiplier=Mathf.Round(multiplier*10)/10;
+		//animator only does float decimal to 0.1f. This checks if that has hapened
+		if(multiplier==0.0f)
+			multiplier=0.1f;
+		//pass through new multiplication value
+		PlayerAnimator.SetFloat (HashKnockbackMultiplier, multiplier);
+
+		if(MyState!=State.Action)
+			PlayerAnimator.SetTrigger (HashKnockback);
+
+		//The issue is that if knockback is called, KBIsActive=true, so the player can't get damaged. Hence in here KBIsActive is after the yield return null;
+		//But the problem with that is other events sometimes get called in that tiny window stuffing up the KB... I think
+		KBIsActive = true;
+		//this is the looping move back
+		while (timer>0) {
+			transform.position = Vector3.MoveTowards (transform.position, IEKnockBackAttacker, -IEKnockbackDistance / DistanceDivider * Time.deltaTime);
+			timer -= Time.deltaTime;
+			yield return null;
+			//Debug.Log("KB running");
+		}
+		if (extraWait && MyState!=State.Dead) {
+			yield return new WaitForSeconds (IEKnockBackTime - MaxKnockbackTime);
+		}
+		if (MyState != State.Dead) {
+			MyState = State.Moving;
+			//Debug.LogError("MADE IT!");
+		}
+		//Debug.LogError("MADE IT AGAIN!");
+		KBIsActive = false;
+
+		//make the player temporarily invincible to knockback
+		CurrentInvincibilityDuration=InvincibilityDuration;
+
+		//animator, returning to normal animation stuff
+		//layerAnimator.SetBool (HashKnockback,false);
+	}
+
+	IEnumerator Evading(){
+		EvasionUsed++;
+		EvasionIntUsed++;
+
+		//to visually show in HUD one less evade available
+		foreach(Animator current in RunIcons){
+			if(current!=null){
+				current.SetInteger (Animator.StringToHash ("CurrentEvades"),3-EvasionIntUsed);
+			}
+		}
+
+		MyState = State.Evading;
+
+		#region Initial Take off
+		//Debug.Log("Evading");
+		//yield return new WaitForSeconds(0.1f);
+		PlayerAnimator.SetTrigger (HashEvading);
+		yield return null;//new WaitForSeconds (0.1f);
+		#endregion
+		#region Floating through the air
+		float timer;
+		float timerDivider;
+		if (EvadeDuration - 0.45f > 0) {
+			float num = 0.1f / (EvadeDuration - 0.45f);
+			//float numTwo=.45f/EvadeDuration;
+			//PlayerAnimator.SetFloat (HashEvadeFloatMultiplier, Mathf.Ceil (numTwo * 10f) / 10f);
+			//Debug.Log (Mathf.Ceil (num * 10f) / 10f);
+			timer = EvadeDuration - 0.45f;
+
+		} else {
+			//PlayerAnimator.SetFloat (HashEvadeFloatMultiplier, 1f);
+			timer = 0.1f;
+		}
+		timerDivider = timer;
+		//moving the player
+		Vector3 TargetPoint = transform.position + EvadeDirection * EvadeDistance;
+		//Debug.LogError(TargetPoint);
+		TargetPoint.y = transform.position.y;
+		transform.rotation=Quaternion.LookRotation (TargetPoint - transform.position);
+		yield return null;//new WaitForSeconds (0.1f);
+		while (timer>0) {
+			//Debug.LogError("T pos "+transform.position+" targ point "+TargetPoint);
+			float evadeMultiplication = EvadeDistance / timerDivider;
+			//Debug.LogError(evadeMultiplication);
+			transform.position = Vector3.MoveTowards (transform.position, TargetPoint, evadeMultiplication * Time.deltaTime);
+			timer -= Time.deltaTime;
+
+			//Visual dust kick during movement
+//			GameObject CurrentDustKick = (GameObject)Instantiate (DustKick);
+//			CurrentDustKick.transform.position = transform.position;
+//			CurrentDustKick.transform.rotation = transform.rotation*Quaternion.Euler(new Vector3(0.0f, 90.0f, 0.0f));
+
+			yield return null;
+		}
+		#endregion
+		#region Landing
+		/*the code here was removed. as the game felt "clunky"
+		 * yield return new WaitForSeconds (0.11f);
+		 * /
+		//Debug.LogError ("Tock");
+		//PlayerAnimator.SetBool (HashEvading, false);
+		if (MyState != State.Dead)
+			MyState = State.Moving;*/
+		#endregion
+
+		/*yield return new WaitForSeconds(0.11f);*/
+	}
+
+	IEnumerator Death(){
+		MyState=State.Dead;
+		PlayerAnimator.SetTrigger("Die");
+		GameObject.FindGameObjectWithTag("MainCamera").GetComponent<GameCamera>().DeathCam(DeathCamTrans,DeathCamLookTarget);
+		if(HUDOBJ!=null)
+			HUDOBJ.SetActive(false);
+		else
+			GameObject.FindGameObjectWithTag("CanvasHUD").SetActive(false);
+
+		yield return new WaitForSeconds(2.5f);
+
+		GameObject.FindGameObjectWithTag("CanvasPauseMenu").GetComponent<InGamePauseMenu>().DeathMenuActive();
+	}
+
+	//This function checks that all variables that are dependant on other objects are not missing
+	private void CheckAllUIComponents(){
+		if(HUDOBJ==null){
+			HUDOBJ=GameObject.FindGameObjectWithTag("CanvasHUD");
+			if(PrefabHUDOBJ!=null&& HUDOBJ==null){
+				HUDOBJ= (GameObject)Instantiate(PrefabHUDOBJ,new Vector3(0,0,0),Quaternion.identity);
+			}
+		}
+		if(HUDOBJ!=null){
+			//all the tests go in here
+			if(healthSlider==null){
+				GameObject OBJToFind=GameObject.Find("BarsAndHealthBarSlider");
+				if(OBJToFind!=null)
+					healthSlider = OBJToFind.GetComponent<Slider>();
+			}
+			if(EvadeSlider==null){
+				GameObject OBJToFind=GameObject.Find("EvadeBar");
+				if(OBJToFind!=null)
+					EvadeSlider = OBJToFind.GetComponent<Slider>();
+			}
+			bool isMissingOne=false;
+			foreach(Animator current in RunIcons){
+				if(current==null){
+					isMissingOne=true;
+				break;
+				}
+			}
+			if(isMissingOne){
+				Animator EA1=null;
+				Animator EA2=null;
+				Animator EA3=null;
+				Animator[] EvadeSearch= HUDOBJ.GetComponentsInChildren<Animator>();
+				foreach(Animator current in EvadeSearch){
+					if(current.name=="EvadeIcon1"){
+						EA1=current;
+					}else
+					if(current.name=="EvadeIcon2"){
+						EA3=current;
+					}else
+					if(current.name=="EvadeIcon3"){
+						EA3=current;
+					}
+				}
+				RunIcons=new Animator[]{EA1,EA2,EA3};
+			}
+		}else{
+			Debug.LogError("Player HUD OBJ not found, or spawnable");
+		}
+	}
+
+	#endregion
+
+	#region Public functions
+	//ignoresKB=false means, if the player is currently being KB, then he can't take damage from this type of attack
+	//animate = true means this will visualize the player taking damage
+	public void Damage (float ReduceHealthBy, bool Animate = true, bool IgnoresKB = false)
+	{
+		//Debug.LogError ("Damage Called. Damage: "+ReduceHealthBy);
+		if ((!KBIsActive || IgnoresKB) && MyState!=State.Dead) {
+			currentHealth -= Mathf.Abs (ReduceHealthBy);
+//			if (Animate){
+//				//Instantiate (HitVisualization, transform.position, transform.rotation);
+//			}
+			if(currentHealth<=0){
+				StartCoroutine(Death ());
+				if(MyState!=State.Dead)
+					MyState=State.Dead;
+			}
+		}
+	}
+
+	public void RestoreAllHealth(){
+		currentHealth=maxHealth;
+		//health slider on HUD
+		healthSlider.value = 1f;
+	}
+
+	//Called by enemy when their action causes knockback
+	//ChainKB = true means that if the player is already KB, it will override that KB, and initiate this new KB
+	private void Knockback (float knockbackDuration, float knockbackDistance, Vector3 PointToTravelAwayFrom, bool interuptsAttack =true, bool ChainKB = false)
+	{
+		//Debug.LogError ("Knockback Called");
+		if ((!KBIsActive || ChainKB) && CurrentInvincibilityDuration<=0.0f && MyState!=State.Dead) {
+			StopCoroutine(KnockBackCoRout());
+			//stop attack???
+			if (interuptsAttack) {
+				StopCoroutine (AttackCoRout ());
+			}
+
+			MyState = State.Knockback;
+			IEKnockBackTime = knockbackDuration;
+			IEKnockBackAttacker = PointToTravelAwayFrom;
+			IEKnockbackDistance = knockbackDistance;
+			StartCoroutine (KnockBackCoRout ());
+		}
+	}
+	//This is here to FORCE knockback to get called AFTER damage
+	public void DamageAndAttack(float ReduceHealthBy, float knockbackDuration, float knockbackDistance, Vector3 PointToTravelAwayFrom, bool interuptsAttack =true, bool ChainKB = false,  bool AnimateDamage = true, bool DamageIgnoresKB = false){
+		Damage (ReduceHealthBy, AnimateDamage, DamageIgnoresKB);
+		Knockback (knockbackDuration, knockbackDistance, PointToTravelAwayFrom, interuptsAttack, ChainKB );
+//		Debug.LogError ("KB Variable pass through knockbackDuration "+ knockbackDuration);
+//		Debug.LogError ("KB Variable pass through knockbackDistance "+ knockbackDistance);
+//		Debug.LogError ("KB Variable pass through PointToTravelAwayFrom "+ PointToTravelAwayFrom);
+//		Debug.LogError ("KB Variable pass through interuptsAttack "+ interuptsAttack);
+//		Debug.LogError ("KB Variable pass through ChainKB "+ ChainKB);
+	}
+
+	public bool IsBeingKnockedBack(){
+		return KBIsActive;
+	}
+
+	//IgnoresKB = false means that if the player is currently in a KB state, that the DOT will NOT get applied. if true, DOT will become active/function will run
+	public void DOT(int ID, float time, float TotalDamage, bool ignoresKB=false){
+		if ((ignoresKB || !KBIsActive) && MyState!=State.Dead) {
+			DOTActive = true;
+			if (time > DOTTimeRemaining)
+				DOTTimeRemaining = time;
+			if (TotalDamage > DOTDamage)
+				DOTDamage = TotalDamage;
+			//if the DOT being entered lasts longer than the amount the damage over time is being divided by. change the division to the new time
+			if (time > DOTDamageDivide)
+				DOTDamageDivide = time;
+		/*if the new time is less than the current divide amount (also, the current "max" amount of time a DOT can CURRENTLY last for. IE. this "max" can change)
+		bump up the remaining time by this new DOT. But not over the siad "max"*/
+		else if (time < DOTDamageDivide) {
+				DOTTimeRemaining += time;
+				if (DOTTimeRemaining > DOTDamageDivide) {
+					DOTTimeRemaining = DOTDamageDivide;
+				}
+			}
+		}
+	}
+
+	public void switchWeapons(WeaponClass Weapon){
+		if (MyState!=State.Dead){
+//			Debug.LogError("Passed in wep is "+Weapon.AttackArea.name);
+			//Debug.LogError("Current wep is "+CurrentWeapon.AttackArea.name);
+			if(CurrentWeapon!=null){
+				if(CurrentWeapon.AttackArea!=null)
+					CurrentWeapon.AttackArea.SetActive(false);
+			}
+			CurrentWeapon=Weapon;
+			if(CurrentWeapon.AttackArea!=null)
+				CurrentWeapon.AttackArea.SetActive(true);
+//			AttackDamage = Weapon.damage;
+//			KnockbackHitDuration = Weapon.KnockbackDuration;
+//			KnockbackHitDistance = Weapon.KnockbackDistance;
+//			AttackBox.gameObject.SetActive (false);
+//			Weapon.AttackArea.SetActive (true);
+//			AttackBox = Weapon.AttackArea.GetComponent<StoreObjectsInCollider> ();
+		}
+	}
+
+
+	public void AttackButton(){
+		if (MyState== State.Moving) {
+			MyState = State.Action;
+			//animator turn off running
+			PlayerAnimator.SetBool(HashRunning,false);
+			
+			StartCoroutine (AttackCoRout ());
+		}
+	}
+	public void EvadeButton(){
+		if(MyState== State.Moving && EvasionUsed <= 2f){
+			StartCoroutine(Evading());
+		}
+	}
+	public bool GetHUD(){
+		if(HUDOBJ!=null)
+			return true;
+		else{
+			CheckAllUIComponents();
+			if(HUDOBJ!=null){
+				return true;
+			}else{
+				return false;
+			}
+		}
+	}
+	#endregion
+}

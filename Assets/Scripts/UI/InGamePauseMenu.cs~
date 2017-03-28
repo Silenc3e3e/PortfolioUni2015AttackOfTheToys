@@ -1,0 +1,50 @@
+﻿using UnityEngine;
+using System.Collections;
+
+public class InGamePauseMenu : MonoBehaviour {
+	
+	public GameObject Main;
+	public GameObject Options;
+	public GameObject Load;
+	public GameObject DeathMenu;
+	public string MainMenuName;
+
+	public void toMenu(){
+		Main.SetActive (true);
+		Options.SetActive (false);
+		Load.SetActive (false);
+		Time.timeScale=0f;
+	}
+	public void toOptions(){
+		Main.SetActive (false);
+		Options.SetActive (true);
+		Load.SetActive (false);
+		Time.timeScale=0f;
+	}
+	public void toLoadGame(){
+		Main.SetActive (false);
+		Options.SetActive (false);
+		Load.SetActive (true);
+		Time.timeScale=0f;
+	}
+	public void CloseAll(){
+		Main.SetActive (false);
+		Options.SetActive (false);
+		Load.SetActive (false);
+		Time.timeScale=1f;
+	}
+	public void GoToMainMenu(){
+		Time.timeScale=1f;
+		Application.Quit();
+		//Application.LoadLevel (MainMenuName);
+	}
+	public void DeathMenuActive(){
+		Time.timeScale=1f;
+		CloseAll();
+		DeathMenu.SetActive(true);
+	}
+	public void ReloadLevel(){
+		Time.timeScale=1f;
+		Application.LoadLevel (Application.loadedLevel);
+	}
+}

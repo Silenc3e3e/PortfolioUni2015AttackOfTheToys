@@ -1,0 +1,155 @@
+fileFormatVersion: 2
+guid: e95e4f33a13ddde4eaccea32ff6c2f2c
+timeCreated: 1447143658
+licenseType: Free
+TextureImporter:
+  fileIDToRecycleName:
+    21300000: mainMenu_pauseMenuBitsPieces_0
+    21300002: Sound
+    21300004: SoundBar1
+    21300006: SoundBar2
+    21300008: SoundBar3
+    21300010: Shine
+    21300012: WhiteBox
+    21300014: Cogs
+    21300016: ButtonBorder
+  serializedVersion: 2
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 1
+    linearTexture: 0
+    correctGamma: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: .25
+    normalMapFilter: 0
+  isReadable: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 0
+  cubemapConvolution: 0
+  cubemapConvolutionSteps: 8
+  cubemapConvolutionExponent: 1.5
+  seamlessCubemap: 0
+  textureFormat: -1
+  maxTextureSize: 2048
+  textureSettings:
+    filterMode: -1
+    aniso: 16
+    mipBias: -1
+    wrapMode: 1
+  nPOTScale: 0
+  lightmap: 0
+  rGBM: 0
+  compressionQuality: 50
+  allowsAlphaSplitting: 0
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: .5, y: .5}
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spritePixelsToUnits: 500
+  alphaIsTransparency: 1
+  textureType: 8
+  buildTargetSettings: []
+  spriteSheet:
+    sprites:
+    - name: mainMenu_pauseMenuBitsPieces_0
+      rect:
+        serializedVersion: 2
+        x: 1003
+        y: 1016
+        width: 1045
+        height: 1032
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 250, y: 244, z: 219, w: 212}
+    - name: Sound
+      rect:
+        serializedVersion: 2
+        x: 92
+        y: 622
+        width: 157
+        height: 255
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+    - name: SoundBar1
+      rect:
+        serializedVersion: 2
+        x: 252
+        y: 688
+        width: 44
+        height: 124
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+    - name: SoundBar2
+      rect:
+        serializedVersion: 2
+        x: 291
+        y: 660
+        width: 47
+        height: 176
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+    - name: SoundBar3
+      rect:
+        serializedVersion: 2
+        x: 328
+        y: 635
+        width: 49
+        height: 227
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+    - name: Shine
+      rect:
+        serializedVersion: 2
+        x: 708
+        y: 726
+        width: 221
+        height: 198
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+    - name: WhiteBox
+      rect:
+        serializedVersion: 2
+        x: 1024
+        y: 48
+        width: 924
+        height: 939
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+    - name: Cogs
+      rect:
+        serializedVersion: 2
+        x: 48
+        y: 75
+        width: 487
+        height: 357
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 0, y: 0, z: 0, w: 0}
+    - name: ButtonBorder
+      rect:
+        serializedVersion: 2
+        x: 8
+        y: 1049
+        width: 987
+        height: 987
+      alignment: 0
+      pivot: {x: .5, y: .5}
+      border: {x: 55, y: 56, z: 56, w: 55}
+  spritePackingTag: 
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

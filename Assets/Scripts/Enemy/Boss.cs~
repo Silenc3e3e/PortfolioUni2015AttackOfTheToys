@@ -1,0 +1,787 @@
+﻿using UnityEngine;
+using System.Collections;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+public class Boss : MonoBehaviour {
+	
+	/*Important notes:
+	 * Made all variables lower case. and all functions upper case.
+	 * exceptions: enum State{Idle, MoveToTarget, Attack, Cast, Hit, Dying, Death}
+	 * 
+	 * changed AttackSpeed to attackDuration
+	 * 
+	 * moved the following variables into "MeleeEnemy" script:
+	 * attackDuration
+	 * collisionTime
+	 * attackTimer
+	 * attackVisualization
+	 * beginAttackVisualization
+	 * 
+	 * 
+	 * added regions everywhere
+	 * Recomendation: Tools-->Options-->Text Editor-->General-->Code Folding. Enable ALL 3 check boxes
+	 * 
+	 * changed the following functions from public to private:
+	 * Start
+	 * Idle
+	 * Attacking
+	 * 		Sub-note: Movement() is still public, as "MeleeEnemy" script calls said function
+	 * Update
+	 * WhileMovingTest
+	 * WhileIdleTest
+	 */
+	
+	
+	#region Variables
+
+	public GameObject TemporaryVisualization1;
+	public GameObject TemporaryVisualization2;
+	public GameObject TemporaryVisualization3;
+
+	private int MeleeAttackCounter;
+	private int SpinAttackCounter;
+	private int RangedAttackCounter;
+	private int CurrentStage=1;
+	public string CurrentStagePassBack{
+		get{ return CurrentStage.ToString();}
+	}
+	[Range (0.01f,1.0f)]
+	public float[] CurrentStageHealthPercentageRequired;
+
+
+	#region nav mesh movement
+	public float[] moveSpeed4Stages;
+	public Transform PlayerTransform;
+
+
+	//public is temporary. please return to private
+	public NavMeshAgent agent;
+	#endregion
+	
+	#region Attacking
+	//NOTE: see line 40-41. Attack leeway. related to function "WhileMovingTest"
+	//The gap of time between COMPLETING each attack. This is the value that attackGapTimer is reset to each time
+	public float[] attackGapsDuration4Stages;
+	private float attackGapTimer= 0;
+	//private EnemeyStrategisingScript MasterAI;
+	
+	//This is used to prevent the timer for attacking between attacks from going down when an attack animation is playing
+	private bool attackAnimationRunning=false;
+	
+	//layer mask to see the player
+	private int EnvironmentLayerMask;
+
+	
+
+
+	//melee attacks
+	public float MeleeAttackRange;
+	public int MeleeMaxNoAttackInARow;
+	//how much how much the player has to be with this units attack range. 1= Only JUST needs to touch. 0= must be as close next to the player. related to function "WhileMovingTest"
+	[Range (0.01f,1.0f)]public float[] MeleeAttackLeeWay4Stages;
+	public float[] MeleeAttackDuration4Stages;
+	[Range(0.0f,1f)]
+	public float meleeCollisionTime;
+	public StoreObjectsInCollider MeleeAttackBox;
+	//Melee knock back related
+	public float[] MeleeknockbackDurationOnPlayer4Stages;
+	public float[] MeleeknockbackDistanceOnPlayer4Stages;
+	public float[] MeleeAttackDamage4Stages;
+	public float[] MeleeTurnRate4Stages;
+
+	//Spin attacks
+	public StoreObjectsInCollider SpinAttackBox;
+	public int SpinMaxNoAttackInARow;
+	public float SpinAttackRange;
+	//No lee way for spin, as the boss can start the spin outside of the spin's attack range
+	public float SpinTimeToBeginSpinning;
+	public float[] SpinDuration3Stages;
+	public float[] SpinknockbackDurationOnPlayer3Stages;
+	public float[] SpinknockbackDistanceOnPlayer3Stages;
+	public float[] SpinAttackDamage3Stages;
+	public float[] SpinMovementSpeed3Stages;
+	public float SpinPlayerHitExtraCoolDown=2f;
+
+	//Ranged attacks
+	public int RangedMaxNoAttackInARow;
+	public float[] RangedAttackDamage2Stages;
+	public float RangedAttackRange;
+	[Range (0.01f,1.0f)]public float[] RangedAttackLeeWay2Stages;
+	public float[] RangedKnockbackDuration2Stages;
+	public float[] RangedKnockbackDistance2Stages;
+	public float[] RangedTravelSpeed2Stages;
+	public float[] RangedDurationTillProjectileFire2Stages;
+	public float[] RangedTimeToReturnToNeutral2Stages;
+	public GameObject RangedPrefabToSpawn;
+	public Transform RangedSpawnPoint;
+	#endregion
+	
+	//Used in conjunction with attacking. See update function. But also can be used with other functions in future
+	private float previousTime;
+	
+	
+	#region Unit state
+	public enum State
+	{
+		Idle,
+		MoveToTarget,
+		Attack,
+		Hit,
+		Dying,
+		Knockback
+	}
+	private State currentState;
+	public string CurrentStatePassBack{
+		get{ return currentState.ToString();}
+	}
+	public void SwitchToAttackState(){
+		currentState = State.Attack;
+	}
+	#endregion
+	
+	#region health
+	public float maxHealth;
+	public float currentHealth;
+	public BossUI UIScriptRef;
+	public Renderer MaterialRenderer;
+	#endregion
+	
+	
+	#region Animation Controller Thing
+	public Animator EnemyAnimator;
+	private int HashRunning;
+	private int HashAttack;
+	private int HashDead;
+	#endregion
+	
+	#endregion
+	
+	
+	
+	
+	#region Variables pass back/through
+	
+	#region pass back. IE. Returns a variable
+	public NavMeshAgent CSEnemyAgent ()
+	{
+		return agent;
+	}
+	public float previousTimeReturn(){
+		return previousTime;
+	}
+	public int HashRunningReturn(){
+		return HashRunning;
+	}
+	public int HashAttackReturn(){
+		return HashAttack;
+	}
+	#endregion
+	
+	public bool publicattackAnimationRunning{
+		get{
+			return attackAnimationRunning;
+		}
+		set{
+			attackAnimationRunning=value;
+		}
+	}
+	
+	#region pass through. IE. function sets the variable
+	public void CSEnemyResetattackGapTimer ()
+	{
+		attackGapTimer = attackGapsDuration4Stages[CurrentStage-1];
+	}
+	public void CSEnemyLeaveIdelState(){
+		if (currentState == State.Idle) {
+			Movement();
+			//Debug.Log("Boss leave idle called!");
+		}
+	}
+	#endregion
+	
+	#if UNITY_EDITOR
+
+	private string GizmoDisplayText="Empty";
+
+	void OnDrawGizmos() {
+		//Melee
+		Color HandleColour=Color.cyan;
+		if(PlayerTransform!=null){
+			if(Vector3.Distance(transform.position,PlayerTransform.position) <= MeleeAttackRange)
+				HandleColour=Color.red;
+		} else{
+			PlayerTransform = GameObject.FindGameObjectWithTag ("Player").transform;
+		}
+		
+		HandleColour.a=0.5f;
+		Handles.color=HandleColour;
+		Handles.DrawWireDisc(transform.position,transform.up,MeleeAttackRange);
+		HandleColour=Color.blue;
+		if(PlayerTransform!=null){
+			if(Vector3.Distance(transform.position,PlayerTransform.position) 
+			   <= MeleeAttackRange*
+			   MeleeAttackLeeWay4Stages[0])
+				HandleColour=Color.red;
+		}
+		foreach(float current in MeleeAttackLeeWay4Stages)
+			Handles.DrawWireDisc(transform.position,transform.up,MeleeAttackRange*current);
+
+		//Spin
+		HandleColour=Color.green;
+		if(PlayerTransform!=null){
+			if(Vector3.Distance(transform.position,PlayerTransform.position) <= SpinAttackRange)
+				HandleColour=Color.red;
+		} else{
+			PlayerTransform = GameObject.FindGameObjectWithTag ("Player").transform;
+		}
+		HandleColour.a=0.5f;
+		Handles.color=HandleColour;
+		Handles.DrawWireDisc(transform.position,transform.up,SpinAttackRange);
+
+		//Ranged
+		HandleColour=Color.black;
+		if(PlayerTransform!=null){
+			if(Vector3.Distance(transform.position,PlayerTransform.position) <= RangedAttackRange)
+				HandleColour=Color.red;
+		} else{
+			PlayerTransform = GameObject.FindGameObjectWithTag ("Player").transform;
+		}
+		HandleColour.a=0.5f;
+		Handles.color=HandleColour;
+		Handles.DrawWireDisc(transform.position,transform.up,RangedAttackRange);
+		HandleColour=Color.gray;
+		if(PlayerTransform!=null){
+			if(Vector3.Distance(transform.position,PlayerTransform.position) <= RangedAttackRange*RangedAttackLeeWay2Stages[0])
+				HandleColour=Color.red;
+		}
+		foreach(float current in RangedAttackLeeWay2Stages)
+			Handles.DrawWireDisc(transform.position,transform.up,RangedAttackRange*current);
+
+
+		Handles.color=Color.green;
+		Handles.Label(transform.position + Vector3.up*3f,GizmoDisplayText);
+	}
+	#endif
+	
+	#endregion
+	
+	public void Start(){
+		agent = gameObject.GetComponent<NavMeshAgent> ();
+
+	
+
+
+		
+		//Animation
+		if (EnemyAnimator != null) {
+			HashRunning = Animator.StringToHash ("Running");
+			HashAttack = Animator.StringToHash ("Attacking");
+			HashDead = Animator.StringToHash ("Dead");
+		}
+		
+		
+		currentHealth = maxHealth;
+		if (!PlayerTransform)
+			PlayerTransform = GameObject.FindGameObjectWithTag ("Player").transform;
+		if(UIScriptRef==null)
+			UIScriptRef=gameObject.GetComponent<BossUI>();
+
+		agent.SetDestination (PlayerTransform.position);
+		agent.speed = moveSpeed4Stages[CurrentStage-1];
+
+		//temporary for testing
+		CSEnemyLeaveIdelState ();
+		//Idle();
+		
+		//was being used to create master AI. But that has been put on hold. commented out of tidieness's sake
+		//		GameObject MasterAiSearch = GameObject.FindGameObjectWithTag ("EnemyUnitsMasterAI");
+		//		if (MasterAiSearch != null)
+		//			MasterAI=MasterAiSearch.GetComponent<EnemeyStrategisingScript> ();
+		
+		//for getting the time between frames
+		previousTime=Time.time;
+		
+		//Grabbing the unit's color to pingpong between
+		//colorEnd=MaterialRenderer.material.color;
+		
+		EnvironmentLayerMask=1<<LayerMask.NameToLayer("Environment");
+	}
+	
+	#region Functions that change "currentState". IE. called once to set the unit into motion to begin the approriate action/state of being
+	private void Idle ()
+	{
+		//Debug.LogError ("IDLE");
+		agent.Stop ();
+		currentState = State.Idle;
+		#if UNITY_EDITOR
+		GizmoDisplayText="Idling";
+		#endif
+	}
+	
+	public void Attacking ()
+	{
+		#if UNITY_EDITOR
+		GizmoDisplayText="Attacking";
+		#endif
+		//Debug.LogError ("ATTACKING");
+		currentState = State.Attack;
+		agent.SetDestination(PlayerTransform.position);
+		StartCoroutine(MeleeAttackCoroutine());
+	}
+	
+	public void Movement (bool ignoreKB=false)
+	{
+		//Debug.LogError("Boss move called");
+		currentState = State.MoveToTarget;
+	//	agent.Resume ();
+		agent.SetDestination (PlayerTransform.position);
+		agent.Resume();
+		#if UNITY_EDITOR
+		GizmoDisplayText="Moving";
+		#endif
+	}
+	
+
+	
+	public void Damage (float ReduceHealthBy, bool Animate = true, bool IgnoresKB = true, bool interuptsAttack =true)
+	{
+		currentHealth -= Mathf.Abs (ReduceHealthBy);
+		//this needs to be changed. but close enough for now
+		//float HealthLevelNeeded=CurrentStageHealthPercentageRequired[CurrentStage-1];
+		if(CurrentStageHealthPercentageRequired.Length==0){
+			if(currentHealth<=CurrentStageHealthPercentageRequired[CurrentStage-1]*maxHealth){
+				CurrentStage++;
+				agent.speed = moveSpeed4Stages[CurrentStage-1];
+			}
+		}
+		if (currentHealth <= 0) {
+			StartCoroutine(Death());
+			UIScriptRef.Death();
+		}
+		else
+			UIScriptRef.UpdateHealthBar(currentHealth/maxHealth);
+	}
+	
+	private IEnumerator Death(){
+		#if UNITY_EDITOR
+		GizmoDisplayText="Dying";
+		#endif
+		currentState=State.Dying;
+		if(EnemyAnimator!=null)
+			EnemyAnimator.SetBool(HashDead,true);
+		yield return new WaitForSeconds(.7f);
+
+		yield return new WaitForSeconds(.1f);
+		Destroy(gameObject);
+	}
+	#endregion
+	
+	
+	#region Update function. And all functions called with it each frame
+	private void Update ()
+	{
+		switch (currentState) {
+		case State.Idle:
+			break;
+		case State.MoveToTarget:
+			WhileMovingTest ();
+			break;
+		case State.Attack:
+			if (attackGapTimer <= 0)
+				WhileAttackingTest (attackGapTimer);
+			break;
+		}
+		
+		//timing down the cool down for the attack
+		if (!attackAnimationRunning && attackGapTimer > 0) {
+			attackGapTimer -= (Time.time - previousTime);
+		}
+
+		//this MUST remain at BOTTOM of update function
+		previousTime = Time.time;
+	}
+	
+	public void Flashing(bool ShouldFlash){
+		//FlashMaterial = ShouldFlash;
+		if(ShouldFlash)
+			MaterialRenderer.material.color = Color.red;
+		else
+			MaterialRenderer.material.color = Color.white;
+		//		if (FlashMaterial) {
+		//			IncreaseCWON=false;
+		//			currentWhiteOnMaterial=1f;
+		//		}
+		
+	}
+
+
+	
+	//Called every frame (see update function)
+	private void WhileMovingTest ()
+	{
+		//Debug.Log ("Boss has "+PlayerTransform + " and "+ agent);
+		if (PlayerTransform.position != agent.destination) {
+			//Debug.Log ("recalculating");
+			agent.SetDestination (PlayerTransform.position);
+		}
+
+
+//		if (agent.remainingDistance <= MeleeAttackRange * MeleeAttackLeeWay) {
+//			if(!Physics.Linecast(transform.position,PlayerTransform.position,EnvironmentLayerMask)){
+//				agent.Stop ();
+//				if (attackGapTimer <= 0)
+//					Attacking ();
+//			}
+//		}
+//		else
+//			agent.Resume ();
+
+		//I KNOW, I KNOW. Switch statement. But I wasn't sure how to do it when each case hase multiple conditions
+		if(!Physics.Linecast(transform.position,PlayerTransform.position,EnvironmentLayerMask)){
+			//Melee test instead of in a seperate function
+			if(MeleeAttackCounter<MeleeMaxNoAttackInARow || CurrentStage ==1){
+				if(attackGapTimer <= 0){
+					if(Vector3.Distance(transform.position,PlayerTransform.position)<=MeleeAttackRange){
+						bool SpinAttackNotNeeded = -SpinAttackCounter<(MeleeAttackCounter+RangedAttackCounter);
+						bool RangedAttackNotNeeded = -RangedAttackCounter<(MeleeAttackCounter+SpinAttackCounter);
+						if(CurrentStage<3 || (SpinAttackNotNeeded && RangedAttackNotNeeded)){
+							RunMeleeAttack();
+						} else if(!SpinAttackNotNeeded){
+							RunSpinAttack();
+						}else if(!RangedAttackNotNeeded){
+							RunRangedAttack();
+						}else{
+							Debug.LogError("WARNING. BOSS FAILED TO RUN AN ATTACK: Melee");
+						}
+					}else{
+						TestForSpin();
+					}
+				} else{
+					IsWithinLeeWayRange(MeleeAttackRange*MeleeAttackLeeWay4Stages[CurrentStage]);
+				}
+			}else{
+				TestForSpin();
+			}
+		}	
+	}
+	private void RunMeleeAttack(){
+		StartCoroutine(MeleeAttackCoroutine());
+		MeleeAttackCounter++;
+		RangedAttackCounter--;
+		if(CurrentStage<3){
+			SpinAttackCounter-=2;
+		}else{
+			SpinAttackCounter--;
+		}
+	}
+	private void TestForSpin(){
+		if (SpinAttackCounter < SpinMaxNoAttackInARow && CurrentStage>=2){
+			if(attackGapTimer <= 0){
+				if(Vector3.Distance(transform.position,PlayerTransform.position)<=SpinAttackRange){
+					bool MeleeAttackNotNeeded = -MeleeAttackCounter<(SpinAttackCounter+SpinAttackCounter);
+					bool RangedAttackNotNeeded = -RangedAttackCounter<(MeleeAttackCounter+SpinAttackCounter);
+					if(CurrentStage<3 || (MeleeAttackNotNeeded && RangedAttackNotNeeded)){
+						RunSpinAttack();
+					} else if(!MeleeAttackNotNeeded){
+						agent.Resume();
+					}else if(!RangedAttackNotNeeded){
+						RunRangedAttack();
+					}else{
+						Debug.LogError("WARNING. BOSS FAILED TO RUN AN ATTACK: Spin");
+					}
+				}else{
+					TestForRanged();
+				}
+			} else{
+				IsWithinLeeWayRange(SpinAttackRange);
+			}
+		}else{
+			TestForRanged();
+		}
+	}
+	private void RunSpinAttack(){
+		StartCoroutine(SpinAttackCoroutine());
+		SpinAttackCounter++;
+		RangedAttackCounter--;
+		if(CurrentStage<3){
+			MeleeAttackCounter-=2;
+		}else{
+			MeleeAttackCounter--;
+		}
+	}
+	private void TestForRanged(){
+		if(RangedAttackCounter < RangedMaxNoAttackInARow && CurrentStage>=3){
+			if(attackGapTimer <= 0){
+				bool MeleeAttackNotNeeded = -MeleeAttackCounter<(SpinAttackCounter+RangedAttackCounter);
+				bool SpinAttackNotNeeded = -SpinAttackCounter<(MeleeAttackCounter+RangedAttackCounter);
+				if(Vector3.Distance(transform.position,PlayerTransform.position)<=RangedAttackRange && MeleeAttackNotNeeded && SpinAttackNotNeeded){
+					RunRangedAttack();
+				}else{
+					agent.Resume();
+				}
+			} else{
+				if(RangedAttackLeeWay2Stages.Length>=CurrentStage-2)//May need to be -3 OR -4
+					IsWithinLeeWayRange(RangedAttackRange*RangedAttackLeeWay2Stages[CurrentStage-3]);
+				else
+					IsWithinLeeWayRange(0f);
+			}
+		}
+		else{
+			agent.Resume();
+		}
+	}
+	private void RunRangedAttack(){
+		StartCoroutine(RangedAttackCoroutine());
+		RangedAttackCounter++;
+		SpinAttackCounter--;
+		MeleeAttackCounter--;
+	}
+	private void IsWithinLeeWayRange(float distanceCheck){
+		if(Vector3.Distance(transform.position,PlayerTransform.position)<distanceCheck){
+			agent.Stop();
+		}else{
+			agent.Resume();
+		}
+	}
+
+	
+	//called each update (see update function)
+	public void WhileAttackingTest (float compensation)
+	{
+		//NOTE: (below)
+		/* attackGapTimer-=time.delta;
+		 * attackGapTimer=0.03
+		 * attackGapTimer= -0.005
+		 * attackGapTimer= -5
+		 * if attackGapTimer<=0// WILL NEED TO COMPENSATE FOR attackGapTimer OVER SHOOT INTO NEGATIVES. E.G. if it becomes -0.0something
+		 * && attack routine NOT running bool <-- test this first
+		 * 			{ being the enumeration
+		 * 			}
+		 * 
+		 * 
+		 * enum routine 
+		 */
+	}
+	#endregion
+
+
+	#region Attacks
+	IEnumerator MeleeAttackCoroutine ()
+	{
+		currentState=State.Attack;
+		agent.Stop ();
+		#region Stage 1: attack incoming
+		#if UNITY_EDITOR
+		GizmoDisplayText="Attack Stage 1";
+		#endif
+
+		//Debug.LogError ("Attack 1");
+		//Make the unit face the player
+		transform.rotation = Quaternion.LookRotation (new Vector3(PlayerTransform.position.x,transform.position.y,PlayerTransform.position.z) - transform.position);
+		
+		//animation
+		if (EnemyAnimator != null) {
+			EnemyAnimator.SetBool (HashRunningReturn (), false);
+			EnemyAnimator.SetTrigger (HashAttackReturn ());
+		}
+		
+		
+		//stop the timer for the delay inbetween attacks from going down.
+		publicattackAnimationRunning = true;
+
+		//Temporary only!
+		Instantiate(TemporaryVisualization1,transform.position,transform.rotation);
+
+		//yield return new WaitForSeconds (meleeCollisionTime);
+		float AttackDuration=MeleeAttackDuration4Stages[CurrentStage-1];
+		float timer=meleeCollisionTime*AttackDuration;
+		while(timer>0){
+			timer-=Time.deltaTime;
+			//Debug.Log("Player point is: "+Quaternion.LookRotation(PlayerTransform.position - transform.position)+". enemy is facing: "+transform.rotation);
+			//Debug.Log("Rotating to " +Quaternion.LookRotation(new Vector3(PlayerTransform.position.x,transform.position.y,PlayerTransform.position.z) - transform.position));
+			transform.rotation = Quaternion.Lerp (transform.rotation, Quaternion.LookRotation(new Vector3(PlayerTransform.position.x,transform.position.y,PlayerTransform.position.z) - transform.position),Time.deltaTime*MeleeTurnRate4Stages[CurrentStage-1]);
+			//The above line is not working at all it seems?
+			Debug.Log("Supposedly turning... ");
+			yield return null;
+		}
+		#endregion
+		
+		
+		#region Stage 2: Damage if conditions are met
+		//		Debug.LogError("Attack 2");
+		//If the enemy is within hit range. Damage the player (see the Player's control script)
+		//		if (Vector3.Distance (transform.position, PlayerTransform.position) <= MeleeAttackRange + 1) {
+		//			PlayerControl PlayerCT = PlayerTransform.gameObject.GetComponent<PlayerControl> ();
+		//			PlayerCT.Damage (1f);
+		//			PlayerCT.Knockback (IEknockbacktime, IEknockbackDistance, transform.position);
+		//		}
+		//		if(AttackBox.ReturnObjectList().Count!=0)
+		foreach (GameObject currentObj in MeleeAttackBox.ReturnObjectList()) {
+			if (currentObj.tag == "Player") {
+				PlayerControl thisObjectsPlayerScript = currentObj.GetComponent<PlayerControl> ();
+				thisObjectsPlayerScript.DamageAndAttack (MeleeAttackDamage4Stages[CurrentStage-1], MeleeknockbackDurationOnPlayer4Stages[CurrentStage-1], MeleeknockbackDistanceOnPlayer4Stages[CurrentStage-1], transform.position);
+				break;
+			}
+		}
+
+		#if UNITY_EDITOR
+		GizmoDisplayText="Attack Stage 2";
+		#endif
+
+		//Reset the timer which puts a gap between unit attacks.
+		CSEnemyResetattackGapTimer ();
+		#endregion
+		//Temporary only!
+		Instantiate(TemporaryVisualization2,transform.position,transform.rotation);
+
+		#region Stage 3: wait for remaining animation to play
+		//Debug.LogError("Attack 3");
+		//If the attackDuration is less than the point in time where the damage is dealt. wait for (see if true)
+		if (AttackDuration - meleeCollisionTime < 0)
+			//true
+			//wait for the duration of attackDuration
+			yield return new WaitForSeconds (AttackDuration);
+		else
+			//false
+			//wait for the difference between attackDuration and collisionTime
+			yield return new WaitForSeconds (AttackDuration - meleeCollisionTime);
+		#if UNITY_EDITOR
+		GizmoDisplayText="Attack Stage 3";
+		#endif
+		#endregion
+		
+		
+		#region Stage 4: resume chasing the player and the likes.
+		//	Debug.LogError("Attack 4");
+		//the timer for gaps between attacks can start going down again
+		publicattackAnimationRunning = false;
+
+
+		//Resetting the timer for inbetween attack
+		attackGapTimer=attackGapsDuration4Stages[CurrentStage-1];
+
+
+		#if UNITY_EDITOR
+		GizmoDisplayText="Attack Stage 4 End";
+		#endif
+
+		//reengage movement. Investigate changing this, to see if the enemy can just stand on the spot while waiting before reinitiating the attack
+		Movement ();
+		
+		//animation
+		if (EnemyAnimator != null)
+			EnemyAnimator.SetBool (HashRunningReturn (), true);
+		//EnemyAnimator.SetBool (HashAttackReturn(), false);
+		//Debug.LogError("Attack End");
+		#endregion
+		//Temporary only!
+		Instantiate(TemporaryVisualization3,transform.position,transform.rotation);
+	}
+
+	IEnumerator SpinAttackCoroutine(){
+		currentState=State.Attack;
+		agent.Stop ();
+
+		//stop the timer for the delay inbetween attacks from going down.
+		publicattackAnimationRunning = true;
+
+		yield return new WaitForSeconds(SpinTimeToBeginSpinning);
+
+		agent.Resume();
+		agent.speed=SpinMovementSpeed3Stages[CurrentStage-2];
+
+		//float HoldSpinDuration=SpinDuration3Stages[CurrentStage-2];
+		float RemainingSpinTime;
+		if(SpinDuration3Stages.Length>=CurrentStage-1)
+			RemainingSpinTime=SpinDuration3Stages[CurrentStage-2];
+		else
+			RemainingSpinTime=SpinDuration3Stages[0];
+		float previoustime=Time.time;
+		bool HasHitPlayer=false;
+		float HitPlayerCoolDown=0f;
+		while(RemainingSpinTime>0){
+			float TimeDifference=Time.time-previoustime;
+			RemainingSpinTime-=TimeDifference;
+			if(!HasHitPlayer){
+				foreach (GameObject currentObj in SpinAttackBox.ReturnObjectList()) {
+					if (currentObj.tag == "Player") {
+						PlayerControl thisObjectsPlayerScript = currentObj.GetComponent<PlayerControl> ();
+						thisObjectsPlayerScript.DamageAndAttack (SpinAttackDamage3Stages[CurrentStage-2], SpinknockbackDurationOnPlayer3Stages[CurrentStage-2], SpinknockbackDistanceOnPlayer3Stages[CurrentStage-2], transform.position);
+						HasHitPlayer=true;
+						HitPlayerCoolDown=SpinknockbackDurationOnPlayer3Stages[CurrentStage-2]+SpinPlayerHitExtraCoolDown;
+						break;
+					}
+				}
+			}else{
+				HitPlayerCoolDown-=TimeDifference;
+				if(HitPlayerCoolDown<=0){
+					HasHitPlayer=false;
+				}
+			}
+			yield return null;
+		}
+
+
+		//end attack
+		//returning to normal movement speed
+		agent.speed=moveSpeed4Stages[CurrentStage-1];
+
+		publicattackAnimationRunning = false;
+
+		//Resetting the timer for inbetween attack
+		attackGapTimer=attackGapsDuration4Stages[CurrentStage-1];
+
+		//reengage movement. Investigate changing this, to see if the enemy can just stand on the spot while waiting before reinitiating the attack
+		Movement ();
+		
+		//animation
+		if (EnemyAnimator != null)
+			EnemyAnimator.SetBool (HashRunningReturn (), true);
+
+	}
+	IEnumerator RangedAttackCoroutine(){
+		//stop the timer for the delay inbetween attacks from going down.
+		publicattackAnimationRunning = true;
+
+		currentState=State.Attack;
+		agent.Stop ();
+
+		float timer=RangedDurationTillProjectileFire2Stages[CurrentStage-3];
+		float previousTime=Time.time;
+		while(timer>0){
+			timer-=Time.time-previousTime;
+			previousTime=Time.time;
+			//Debug.Log("Player point is: "+Quaternion.LookRotation(PlayerTransform.position - transform.position)+". enemy is facing: "+transform.rotation);
+			//Debug.Log("Rotating to " +Quaternion.LookRotation(new Vector3(PlayerTransform.position.x,transform.position.y,PlayerTransform.position.z) - transform.position));
+			transform.rotation = Quaternion.LookRotation(new Vector3(PlayerTransform.position.x,transform.position.y,PlayerTransform.position.z) - transform.position);
+			//The above line is not working at all it seems?
+			yield return null;
+		}
+
+		//FIRE!
+		GameObject spawnedPrefab = (GameObject)Instantiate(RangedPrefabToSpawn,RangedSpawnPoint.position,RangedSpawnPoint.rotation);
+		ArrowScript currentPrefabAS=spawnedPrefab.GetComponent<ArrowScript>();
+		if(currentPrefabAS!=null){
+			currentPrefabAS.SetDamageAndKnockback(RangedAttackDamage2Stages[CurrentStage-3],RangedKnockbackDuration2Stages[CurrentStage-3],RangedKnockbackDistance2Stages[CurrentStage-3]);
+			currentPrefabAS.ResetFlight(RangedTravelSpeed2Stages[CurrentStage-3],RangedKnockbackDistance2Stages[CurrentStage-3]);
+		}
+
+		yield return new WaitForSeconds(RangedTimeToReturnToNeutral2Stages[CurrentStage-3]);
+
+		//end attack
+		publicattackAnimationRunning = false;
+		
+		//Resetting the timer for inbetween attack
+		attackGapTimer=attackGapsDuration4Stages[CurrentStage-1];
+		
+		//reengage movement. Investigate changing this, to see if the enemy can just stand on the spot while waiting before reinitiating the attack
+		Movement ();
+		
+		//animation
+		if (EnemyAnimator != null)
+			EnemyAnimator.SetBool (HashRunningReturn (), true);
+	}
+	#endregion
+}

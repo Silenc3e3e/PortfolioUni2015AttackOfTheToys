@@ -1,0 +1,68 @@
+﻿using UnityEngine;
+using System.Collections;
+using System;
+
+public class SaveLoad : MonoBehaviour {
+
+	public int Test;
+
+	// Use this for initialization
+	void Start () {
+		Debug.Log("Stage 1");
+		string DataToSave = BytesToString(System.BitConverter.GetBytes(Test/*Convert.ToUInt64(Test)*/));
+		Debug.Log("Stage 2");
+		PlayerPrefs.SetString("ReachedLevel",DataToSave);
+		Debug.Log("Stage 3");
+//		Debug.Log("Reached level is "+GetIntArray("ReachedLevel"));
+	}
+	//Gets a string form player prefs and deserializes it as an int[]
+//	int[] GetIntArray (string Name)
+//	{
+//		Debug.Log("Raw data is "+PlayerPrefs.GetString (Name));
+//		string SerializedArray = PlayerPrefs.GetString (Name);
+//		byte[] SerializedArrayBytes = new byte[SerializedArray.Length/4];
+//		for (int i = 0; i < SerializedArray.Length; i++)
+//		{
+//			string data=SerializedArray[i]+SerializedArray[i++]+SerializedArray[i+2]+SerializedArray[i+3];
+//			SerializedArrayBytes[i] = (byte)data;
+//			Debug.Log("Reading byte "+Convert.ToInt32(SerializedArrayBytes[i]).ToString());
+//		}
+//		int IntArrayLength = BitConverter.ToInt32 (SerializedArrayBytes, 0);
+//		int[] IntArray = new int[IntArrayLength];
+//		
+//		int SerializationPosition = 4;
+//		for (int i = 0; i < IntArrayLength; i+=1)
+//		{
+//			IntArray[i] = BitConverter.ToInt32(SerializedArrayBytes, SerializationPosition);
+//			SerializationPosition += 4;
+//		}
+//		return IntArray;
+//	}
+
+	//Converts an array of bytes to a string
+	string BytesToString (byte[] bites)
+	{
+		string ret = "";
+		Debug.Log("Bites length is "+bites.Length);
+		string[] SArray = new string[bites.Length];
+		for (int i = 0; i < bites.Length; i++)
+		{
+			Debug.Log("Ret = "+ret);
+			Debug.Log("Bite = "+bites[i]);
+			//ret += Convert.ToChar(bites[i]);
+			byte holder = bites[i];
+
+			ret +=Convert.ToInt32(bites[i]).ToString();
+			SArray[i]=ret;
+			Debug.Log("Base convert "+i+" = "+Convert.ToInt32(bites[i]).ToString());
+		}
+		string SecondHolder="";
+		foreach(string current in SArray){
+			SecondHolder+=current;
+		}
+
+		Debug.Log("Ret final is = "+ret);
+		Debug.Log("SecondHolder final is = "+SecondHolder);
+		return ret;
+	}
+}

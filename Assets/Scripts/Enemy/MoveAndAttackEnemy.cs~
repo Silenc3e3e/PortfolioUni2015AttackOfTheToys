@@ -1,0 +1,104 @@
+﻿using UnityEngine;
+using System.Collections;
+
+public class MoveAndAttackEnemy : Enemy {
+	
+	
+	#region Variables
+	
+	//How long the attack itself (animation etc) goes for
+	public float attackDuration;
+	private float attackDurationTimer;
+	//At what point the during the attack (see above) where the damage is passed through
+	public float attackIntervals;
+	private float attackIntervalTimer;
+	//This is tied in with attackDuration. It goes down, while the animation plays
+	private float attackTimer;
+	//How fast this unit attacks while moving
+	public float attackMoveSpeed;
+	
+	//attack visualisation until models and animation are ready. then delete these
+	public GameObject attackVisualization;
+	public GameObject beginAttackVisualization;
+	
+	//The mesh collider where the player should get hit
+	public StoreObjectsInCollider AttackBox;
+
+	//knock back related
+	public float knockbackDurationOnPlayer;
+	public float knockbackDistanceOnPlayer;
+	public float attackDamage;
+
+//	private Coroutine CurrentAttackCoroutine;
+
+
+	#endregion
+	
+	public override void Attacking ()
+	{
+		//change to attacking animation here
+		attackIntervalTimer = 0f;
+		publicattackAnimationRunning = true;
+		SwitchToAttackState ();
+		CSEnemyAgent ().speed = attackMoveSpeed;
+		attackDurationTimer = attackDuration;
+		CSEnemyAgent ().Resume();
+	}
+	
+	public override void WhileAttackingTest (float compensation)
+	{
+		//Instatiation is temporary. Delete when actual animations are in place
+		Instantiate (beginAttackVisualization, transform.position, transform.rotation);
+		float timeDifference = (Time.time - previousTimeReturn());
+		attackDurationTimer -= timeDifference;
+		if (attackIntervalTimer > 0f)
+			attackIntervalTimer -= timeDifference;
+		else {
+			foreach (GameObject currentObj in AttackBox.ReturnObjectList()) {
+				if(currentObj.tag=="Player"){
+					if(!PublicPlayerPCScript.IsBeingKnockedBack()){
+						PublicPlayerPCScript.DamageAndAttack(attackDamage,knockbackDurationOnPlayer,knockbackDistanceOnPlayer,transform.position);
+						attackIntervalTimer = attackIntervals;
+						//Instatiation is temporary. Delete when actual animations are in place
+						Instantiate (attackVisualization, transform.position, transform.rotation);
+						break;
+					}
+				}
+			}
+		}
+
+		if (PlayerTransform.position != CSEnemyAgent().destination) {
+			//Debug.Log ("recalculating");
+			CSEnemyAgent().SetDestination (PlayerTransform.position);
+		}
+//		if (CSEnemyAgent().remainingDistance <= attackRange) {
+//			CSEnemyAgent().Stop ();
+//			
+//			//Debug.LogError ("Launching coroutine from MTT");
+//		}
+//		else
+//			CSEnemyAgent().Resume ();
+
+		if (attackDurationTimer <= 0f) {
+			publicattackAnimationRunning = false;
+			CSEnemyResetattackGapTimer ();
+			CSEnemyAgent().speed=moveSpeed;
+			Movement ();
+		}
+
+		//If we are not currently knocked down. go through with the attack
+//		if(!CSEnemyIsKB() && !publicattackAnimationRunning){
+//			//if the player is within attack range
+//			if (Vector3.Distance(transform.position,PlayerTransform.position) <= attackRange+1.5f) {
+//				/*CurrentAttackCoroutine=*/StartCoroutine(AttackingCoRout());
+//				//CSEnemyResetattackGapTimer();
+//			} else{
+//				//If the player is not in attack range. go back to walk'in around
+//				Movement();
+//			}
+//		}
+	}
+	
+	
+
+}

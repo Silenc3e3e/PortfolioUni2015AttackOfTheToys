@@ -1,0 +1,94 @@
+﻿using UnityEngine;
+using System.Collections;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+public class Lever : MonoBehaviour {
+
+	public GameObject[] DoorsToOpen;
+	[Range(0.0f,10f)]
+	public float UseDistance=3.5f;
+
+	public GameObject[] ObjectsToSpawn;
+	public GameObject[] DoorsToClose;
+	public GameObject[] DoorsToOpenOnStart;
+	public bool RestorePlayerHealth;
+
+	private Transform PlayerTrans;
+	private bool Activated=false;
+	private int EnvironmentLayerMask;
+
+	void Start(){
+		PlayerTrans=GameObject.FindGameObjectWithTag("Player").transform;
+		EnvironmentLayerMask=1<<LayerMask.NameToLayer("Environment");
+		foreach (GameObject current in ObjectsToSpawn) {
+			current.SetActive(false);
+		}
+		foreach(GameObject Current in DoorsToOpenOnStart){
+			LowerObject ThisScript= Current.GetComponent<LowerObject>();
+			if(ThisScript!=null){
+				ThisScript.LowerTheObject();
+			}
+		}
+	}
+
+
+	#if UNITY_EDITOR
+	public void OnDrawGizmos () {
+		Gizmos.color=Color.red;
+		foreach(GameObject current in ObjectsToSpawn){
+			if(current!=null)
+				Gizmos.DrawLine(transform.position,current.transform.position);
+		}
+		foreach(GameObject current in DoorsToOpen){
+			if(current!=null)
+				Gizmos.DrawLine(transform.position,current.transform.position);
+		}
+	}
+	#endif
+
+
+	void Update(){
+		if(!Activated && Vector3.Distance(transform.position,PlayerTrans.position)<=UseDistance && !Physics.Linecast(transform.position,PlayerTrans.position,EnvironmentLayerMask)){
+			//Make interact button appear
+
+			//Test purposes only. Delete the line directly below
+			GetComponent<Renderer>().material.color = Color.red;
+
+			//Debug.Log("Interact value is "+Input.GetButton ("Interact"));
+			if(Input.GetButton ("Interact")){
+				Activated=true;
+				//Debug.LogError("Interaction activated");
+				foreach(GameObject Current in DoorsToOpen){
+					LowerObject ThisScript= Current.GetComponent<LowerObject>();
+					if(ThisScript!=null){
+						ThisScript.LowerTheObject();
+					}
+				}
+				foreach(GameObject Current in DoorsToClose){
+					LowerObject ThisScript= Current.GetComponent<LowerObject>();
+					if(ThisScript!=null){
+						ThisScript.RaiseTheObject();
+					}
+				}
+				foreach(GameObject current in ObjectsToSpawn){
+					if(current!=null)
+						current.SetActive(true);
+				}
+
+				//restore player health
+				if(RestorePlayerHealth){
+					PlayerControl PCScript =GameObject.FindGameObjectWithTag("Player").GetComponent<PlayerControl>();
+					if(PCScript!=null){
+						PCScript.RestoreAllHealth();
+					}
+				}
+			}
+		}
+		else{//Test purposes only. Delete the line directly below
+			GetComponent<Renderer>().material.color = Color.white;
+		}
+
+	}
+}

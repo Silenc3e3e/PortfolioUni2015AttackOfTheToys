@@ -1,0 +1,134 @@
+﻿using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine.UI;
+
+public class SwitchWeapons : MonoBehaviour {
+
+	public PlayerControl PCScript;
+
+	public WeaponClass[] Weapons;
+	public GameObject HitBoxSword;
+	public GameObject HitBoxSpear;
+	public GameObject[] WeaponIconsInIDOrder;
+	public Text WeaponText;
+
+	private int CurrentIDDisplaying;
+	private GameObject CurrentUIWepShowing;
+
+	public void Start(){
+		bool missingIcon=false;
+		foreach(GameObject current in WeaponIconsInIDOrder)
+			if(current!=null)
+				current.SetActive(false);
+			else{
+				missingIcon=true;
+				break;
+			}
+		if(missingIcon){
+			if(PCScript==null){
+				PCScript=GetComponent<PlayerControl>();
+				if(PCScript==null)
+					Debug.LogError("Fatal Error. SwitchWeapons script must be on player object with PlayerControl Script");
+			}
+
+			if(PCScript.GetHUD()){
+				GameObject IconSword = GameObject.Find("Icon:Sword");
+				GameObject IconSpear = GameObject.Find("Icon:Spear");
+				GameObject IconBow = GameObject.Find("Icon:Bow");
+				WeaponIconsInIDOrder=new GameObject[]{IconSword,IconSpear,IconBow};
+			}
+		}
+
+		WeaponClass Sword = new WeaponClass();
+		Sword.ID = 1;
+		Sword.damage = 13f;
+		Sword.KnockbackDistance=5f;
+		Sword.KnockbackDuration = 2f;
+		Sword.Name="Sword";
+		Sword.AttackAreaScript = HitBoxSword.GetComponent<StoreObjectsInCollider>();
+		Sword.AttackArea=HitBoxSword;
+		Sword.StrikeTime = 0.85f;
+		Sword.AttackDuration=.466666f;
+		WeaponClass Spear= new WeaponClass();
+		Spear.ID = 2;
+		Spear.damage = 8f;
+		Spear.KnockbackDistance=1.5f;
+		Spear.KnockbackDuration = 1f;
+		Spear.Name="Spear";
+		Spear.AttackAreaScript = HitBoxSpear.GetComponent<StoreObjectsInCollider>();
+		Spear.AttackArea=HitBoxSpear;
+		Spear.StrikeTime = 0.5f;
+		Spear.AttackDuration=3f;
+		WeaponClass Bow= new WeaponClass();
+		Bow.ID = 3;
+		Bow.damage = 10f;
+		Bow.KnockbackDistance=3f;
+		Bow.KnockbackDuration = .75f;
+		Bow.Name="Bow";
+		Bow.AttackAreaScript = null;
+		Bow.AttackArea=null;
+		Bow.StrikeTime = 0.82f;
+		Bow.AttackDuration=1.466666f;
+		Bow.RangedProjectileSpeed=10f;
+		Bow.RangedProjectileDistance=15f;
+		Weapons = new WeaponClass[]{Sword,Spear,Bow};
+
+		for(int i=1;i<=Weapons.Length;i++){
+			SwitchWeapon (i);
+		}
+		SwitchWeapon (1);
+	}
+
+	public void ChangeIDDisplayingBy(int Up){
+		CurrentIDDisplaying+=Up;
+		//dealing with CIDD going beyond weapon list range.
+		if(CurrentIDDisplaying<1){
+			if(Weapons!=null)
+				CurrentIDDisplaying=Weapons.Length;
+			else
+				Debug.LogError("ERROR: Missing Weapons list!");
+		}
+		else if(CurrentIDDisplaying>Weapons.Length)
+			CurrentIDDisplaying=1;
+		SwitchWeapon(CurrentIDDisplaying);
+	}
+
+	public void SwitchWeapon(int WepID){
+		foreach (WeaponClass current in Weapons) {
+			if(current.ID==WepID){
+//				Debug.LogError(current.AttackArea.name);
+				PCScript.switchWeapons (current);
+				if(CurrentUIWepShowing!=null)
+					CurrentUIWepShowing.SetActive(false);
+				CurrentUIWepShowing=WeaponIconsInIDOrder[current.ID-1];
+				if(CurrentUIWepShowing!=null)
+					CurrentUIWepShowing.SetActive(true);
+				break;
+			}
+		}
+	}
+	void Update(){
+		if(Input.GetButtonDown("ChangeWeapon")){
+			//Debug.Log("CW current input is "+Input.GetAxisRaw("ChangeWeapon"));
+			if(Input.GetAxisRaw("ChangeWeapon")>.5f)
+				ChangeIDDisplayingBy(1);
+			else if(Input.GetAxisRaw("ChangeWeapon")<-.5f)
+				ChangeIDDisplayingBy(-1);
+		}
+	}
+
+//	public void AddWeapon(){
+//		WeaponClass newWep= new WeaponClass();
+//		newWep.ID = Weapons.Count + 1;
+//		Weapons.Add (newWep);
+//	}
+//	public void RemoveWeapon(WeaponClass WepToRemove){
+//		//comment more and include Matt more!!!!!!
+//		//Matt, get in here!
+//
+//
+//		Weapons.Remove (WepToRemove);
+//	}
+
+}

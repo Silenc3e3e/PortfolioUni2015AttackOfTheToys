@@ -1,0 +1,88 @@
+﻿using UnityEngine;
+using UnityEngine.UI;
+using System.Collections;
+
+public class GameCamera : MonoBehaviour {
+
+	private Vector3 cameraTarget;
+
+	private Transform target;
+	private Vector3 midLerp;
+
+	[Range(0.0f,20f)]
+	public float zChange=6.67f;
+	[Range(0.0f,50f)]
+	public float yChange=9.39f;
+	[Range(0.0f,20f)]
+	public float MoveDampeningMidLerp=1f;
+//	[Range(0.0f,20f)]
+//	public float MoveDampening;
+	//[Range(0.0f,20f)]
+//	public float MoveDampeningTargetLerp;
+	[Range(0.0f,20f)]
+	public float RotationDampening=1.5f;
+//	//[Range(0.0f,20f)]
+//	public float Power;
+//	[Range(0.0f,2f)]
+//	public float Distance;
+//
+	//public Text temp;
+
+//	//Vector for center of the screen. Used for direction of mouse relative to center
+//	private Vector2 ScreenCenter;
+
+	private Vector3 PlayerPrevPosition;
+	private Transform Player;
+//	private float TargetDistFromPlayer;
+
+	//deathcam stuff
+	private bool DeathCamActive=false;
+	private Transform deathCamTransPos;
+
+	void Start () {
+		target = GameObject.FindGameObjectWithTag ("CameraFollow").transform;
+		Player	= GameObject.FindGameObjectWithTag ("Player").transform;
+		//midLerp = target.transform.position;
+//		//sets the vector for the center of the screen
+//		ScreenCenter = new Vector2 (Screen.width/2, Screen.height/2);
+		PlayerPrevPosition = Player.transform.position;
+//		TargetDistFromPlayer = Vector3.Magnitude (target.localPosition)*2;
+	}
+
+//	private float TotalDistance;
+//	private float AddSpeed =0f;
+	void Update () {
+		if (!DeathCamActive){
+			cameraTarget = new Vector3 (target.position.x, target.position.y+yChange, target.position.z-zChange);
+		}else{
+			cameraTarget=new Vector3 (deathCamTransPos.position.x, deathCamTransPos.position.y, deathCamTransPos.position.z);
+		}
+		transform.position += Player.position - PlayerPrevPosition;
+		transform.position = Vector3.Lerp (transform.position, cameraTarget, Time.deltaTime);
+
+
+		//transform.LookAt (target.position);
+		Quaternion rotation = Quaternion.LookRotation(target.position - transform.position);
+		transform.rotation = Quaternion.Slerp(transform.rotation, rotation, Time.deltaTime * RotationDampening);
+
+		//Locking Y rotation to stop camera twist
+		if (!DeathCamActive){
+			Vector3 temp = transform.rotation.eulerAngles;
+			temp.y = 0.0f;
+			transform.rotation = Quaternion.Euler (temp);
+		}
+
+
+		PlayerPrevPosition = Player.transform.position;
+//		Vector2 MousePos=new Vector2(Input.mousePosition.x,Input.mousePosition.y);
+//		Vector2 SecondInput=MousePos-ScreenCenter;
+//		Camera MasterCam = GetComponent<Camera>();
+//		Debug.DrawLine(MasterCam.ScreenToWorldPoint(new Vector3(ScreenCenter.x, ScreenCenter.y, MasterCam.nearClipPlane)),MasterCam.ScreenToWorldPoint(new Vector3(MousePos.x, MousePos.y, MasterCam.nearClipPlane)),Color.red);
+//		Debug.DrawLine (new Vector3(0,0,0),new Vector3(4,4,4),Color.red);
+	}
+	public void DeathCam(Transform newPos, Transform newLookTarget){
+		deathCamTransPos=newPos;
+		target=newLookTarget;
+		DeathCamActive=true;
+	}
+}

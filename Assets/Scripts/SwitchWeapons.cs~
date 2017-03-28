@@ -1,0 +1,60 @@
+﻿using UnityEngine;
+using System.Collections;
+using System.Collections.Generic;
+
+public class SwitchWeapons : MonoBehaviour {
+
+	public PlayerControl PCScript;
+
+	public WeaponClass[] Weapons;
+	public GameObject HitBoxSword;
+	public GameObject HitBoxSpear;
+
+	public void Start(){
+		WeaponClass Sword = new WeaponClass();
+		Sword.ID = 1;
+		Sword.damage = 4f;
+		Sword.KnockbackDistance=5f;
+		Sword.KnockbackDuration = 1f;
+		Sword.Name="Sword";
+		Sword.AttackArea = HitBoxSword;
+		WeaponClass Spear= new WeaponClass();
+		Spear.ID = 2;
+		Spear.damage = 2f;
+		Spear.KnockbackDistance=5f;
+		Spear.KnockbackDuration = 2f;
+		Spear.Name="Spear";
+		Spear.AttackArea = HitBoxSpear;
+		Weapons = new WeaponClass[]{Sword,Spear};
+
+		int i = 1;
+		foreach (WeaponClass current in Weapons){
+			SwitchWeapon (i);
+			i++;
+		}
+	}
+
+	public void SwitchWeapon(int WepID){
+		foreach (WeaponClass current in Weapons) {
+			if(current.ID==WepID){
+				PCScript.switchWeapons (current);
+				Debug.LogError(current.AttackArea.name);
+				break;
+			}
+		}
+	}
+
+//	public void AddWeapon(){
+//		WeaponClass newWep= new WeaponClass();
+//		newWep.ID = Weapons.Count + 1;
+//		Weapons.Add (newWep);
+//	}
+//	public void RemoveWeapon(WeaponClass WepToRemove){
+//		//comment more and include Matt more!!!!!!
+//		//Matt, get in here!
+//
+//
+//		Weapons.Remove (WepToRemove);
+//	}
+
+}

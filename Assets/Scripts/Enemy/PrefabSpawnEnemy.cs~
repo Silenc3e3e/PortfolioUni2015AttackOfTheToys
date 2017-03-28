@@ -1,0 +1,164 @@
+﻿using UnityEngine;
+using System.Collections;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
+public class PrefabSpawnEnemy : Enemy {
+
+	#region Variables
+	
+	//How long the attack itself (animation etc) goes for
+	public float attackDuration;
+	//At what point the during the attack (see above) where the damage is passed through
+	public float pointInTimeCreatePrefab;
+
+	public GameObject prefabToSpawn;
+	public Transform spawnPoint;
+
+	//This is tied in with attackDuration. It goes down, while the animation plays
+	private float attackTimer;
+
+
+	private Coroutine CurrentAttackCoroutine;
+
+	public float DamageOnPlayer;
+	public float knockbackDistanceOnPlayer;
+	public float knockbackDurationOnPlayer;
+	[Range(1f,50f)]
+	public float ProjectileMoveSpeed;
+	[Range(1f,50f)]
+	public float ProjectileMaxTravelDistance;
+	#endregion
+
+
+	#if UNITY_EDITOR
+	
+	public override void OnDrawGizmos() {
+		
+		//distance to player
+		float PlayerDistance=Mathf.Infinity;
+		if(PlayerTransform!=null)
+			PlayerDistance=Vector3.Distance(transform.position,PlayerTransform.position);
+		else{
+			PlayerTransform = GameObject.FindGameObjectWithTag ("Player").transform;
+		}
+		
+		//projectile range
+		Color HandleColour=Color.magenta;
+		HandleColour.a=0.2f;
+		if(PlayerTransform!=null){
+			if(PlayerDistance <= ProjectileMaxTravelDistance){
+				HandleColour=Color.red;
+				HandleColour.a=0.75f;
+			}
+		}
+		
+		Handles.color=HandleColour;
+		//		Handles.color.a=0.0f;
+		Handles.DrawWireDisc(transform.position,transform.up,ProjectileMaxTravelDistance);
+
+		base.OnDrawGizmos();
+	}
+	#endif
+
+
+
+	public override void Start ()
+	{
+		if (spawnPoint == null) {
+			spawnPoint=transform;
+		}
+
+		base.Start ();
+	}
+	
+	public override void WhileAttackingTest (float compensation)
+	{
+
+		//If we are not currently knocked down. go through with the attack
+		if(!CSEnemyIsKB() && !publicattackAnimationRunning){
+			//if the player is within attack range
+			if (Vector3.Distance(transform.position,PlayerTransform.position) <= attackRange+1.5f) {
+				CurrentAttackCoroutine=StartCoroutine(AttackingCoRout());
+
+				//CSEnemyResetattackGapTimer();
+			} else{
+				//If the player is not in attack range. go back to walk'in around
+				Movement();
+			}
+		}
+	}
+	
+	
+	public override void InteruptAttack ()
+	{
+		if(CurrentAttackCoroutine!=null)
+			StopCoroutine (CurrentAttackCoroutine);
+		//the timer for gaps between attacks can start going down again
+		publicattackAnimationRunning = false;
+		base.InteruptAttack ();
+	}
+	
+	
+	IEnumerator AttackingCoRout(){
+		//CSEnemyAgent ().Stop ();
+		#region Stage 1: attack incoming
+		//animation
+		if(EnemyAnimator!=null){
+			EnemyAnimator.SetBool (HashRunningReturn(), false);
+			EnemyAnimator.SetTrigger (HashAttackReturn());
+		}
+
+		//stop the timer for the delay inbetween attacks from going down.
+		publicattackAnimationRunning = true;
+
+		yield return new WaitForSeconds (pointInTimeCreatePrefab);
+
+		#endregion
+		
+		
+		#region Stage 2: Spawn prefab if conditions are met
+		//If the enemy is within hit range. Damage the player (see the Player's control script)
+		//if (Vector3.Distance (transform.position, PlayerTransform.position) <= attackRange + 1) {
+		GameObject spawnedPrefab = (GameObject)Instantiate(prefabToSpawn,spawnPoint.position,spawnPoint.rotation);
+		ArrowScript currentPrefabAS=spawnedPrefab.GetComponent<ArrowScript>();
+		if(currentPrefabAS!=null){
+			currentPrefabAS.SetDamageAndKnockback(DamageOnPlayer,knockbackDurationOnPlayer,knockbackDistanceOnPlayer);
+			currentPrefabAS.ResetFlight(ProjectileMoveSpeed,ProjectileMaxTravelDistance);
+		}
+			//Debug.LogError("Launching prefab");
+		//}
+		//Reset the timer which puts a gap between unit attacks.
+		CSEnemyResetattackGapTimer ();
+		#endregion
+		
+		
+		#region Stage 3: wait for remaining animation to play
+		//If the attackDuration is less than the point in time where the damage is dealt. wait for (see if true)
+		if (attackDuration - pointInTimeCreatePrefab < 0)
+			//true
+			//wait for the duration of attackDuration
+			yield return new WaitForSeconds (attackDuration);
+		else
+			//false
+			//wait for the difference between attackDuration and collisionTime
+			yield return new WaitForSeconds (attackDuration - pointInTimeCreatePrefab);
+		#endregion
+		
+		
+		#region Stage 4: resume chasing the player and the likes.
+		//the timer for gaps between attacks can start going down again
+		publicattackAnimationRunning = false;
+
+		//reengage movement. Investigate changing this, to see if the enemy can just stand on the spot while waiting before reinitiating the attack
+		Movement ();
+
+		//animation
+		if(EnemyAnimator!=null)
+			EnemyAnimator.SetBool (HashRunningReturn(), true);
+		//EnemyAnimator.SetBool (HashAttackReturn(), false);
+		#endregion
+		
+	}
+}

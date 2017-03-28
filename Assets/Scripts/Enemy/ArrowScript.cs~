@@ -1,0 +1,53 @@
+﻿using UnityEngine;
+using System.Collections;
+
+public class ArrowScript : MonoBehaviour {
+	
+	[Range(1f,50f)]public float moveSpeed=10f;
+	[Range(1f,50f)]public float maxDistance=10f;
+	private float timer;
+	private float previousTime;
+
+	private float myDamage = 1f;
+	private float myKnockBackDuration=0f;
+	private float myknockBackDistance=0f;
+
+	public void SetDamageAndKnockback(float damage, float knockBackDuration, float knockBackDistance){
+		myDamage = damage;
+		myknockBackDistance = knockBackDistance;
+		myKnockBackDuration = knockBackDuration;
+	}
+
+	void Start () {
+		transform.rotation=Quaternion.LookRotation (GameObject.FindGameObjectWithTag ("Player").transform.position - transform.position);
+		timer=maxDistance/moveSpeed;
+		previousTime = Time.time;
+	}
+
+	void Update () {
+		transform.position += transform.forward*Time.deltaTime*moveSpeed;
+		timer -= Time.time - previousTime;
+		if (timer <= 0)
+			Destroy (gameObject);
+		previousTime = Time.time;
+	}
+	void OnTriggerEnter(Collider other) {
+		if (other.tag == "StaticEnvironment")
+			Destroy (gameObject);
+		else if (other.tag == "Player") {
+			PlayerControl otherPT = other.GetComponent<PlayerControl> ();
+			if(otherPT!=null){
+				if(myKnockBackDuration>0)
+					otherPT.DamageAndAttack(myDamage, myknockBackDistance,myKnockBackDuration,transform.position);
+				else
+					otherPT.Damage (myDamage);
+			}
+			Destroy (gameObject);
+		}
+	}
+	public void ResetFlight(float speed, float distance){
+		moveSpeed=speed;
+		maxDistance=distance;
+		timer=distance/speed;
+	}
+}
