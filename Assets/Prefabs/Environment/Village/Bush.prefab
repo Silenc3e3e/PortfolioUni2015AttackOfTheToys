@@ -11,12 +11,12 @@ GameObject:
   - 33: {fileID: 3320738}
   - 23: {fileID: 2345744}
   - 65: {fileID: 6571232}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: Bush
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 4294967295
+  m_StaticEditorFlags: 4294967294
   m_IsActive: 1
 --- !u!1 &167822
 GameObject:
@@ -28,12 +28,12 @@ GameObject:
   - 4: {fileID: 450844}
   - 33: {fileID: 3367450}
   - 23: {fileID: 2379022}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: leaves003
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 4294967295
+  m_StaticEditorFlags: 4294967294
   m_IsActive: 1
 --- !u!1 &178718
 GameObject:
@@ -45,12 +45,12 @@ GameObject:
   - 4: {fileID: 419786}
   - 33: {fileID: 3379316}
   - 23: {fileID: 2370666}
-  m_Layer: 0
+  m_Layer: 10
   m_Name: leaves002
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
-  m_StaticEditorFlags: 4294967295
+  m_StaticEditorFlags: 4294967294
   m_IsActive: 1
 --- !u!4 &411816
 Transform:
@@ -59,7 +59,7 @@ Transform:
   m_PrefabInternal: {fileID: 100100000}
   m_GameObject: {fileID: 127314}
   m_LocalRotation: {x: -0.7071068, y: 0, z: -0, w: 0.7071068}
-  m_LocalPosition: {x: -0, y: 0, z: 0}
+  m_LocalPosition: {x: 30.23511, y: 0, z: 18.602613}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_Children:
@@ -106,7 +106,7 @@ MeshRenderer:
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
   m_Materials:
-  - {fileID: 2100000, guid: d0fa225f19fe18141863e1ad8efbae7d, type: 2}
+  - {fileID: 2100000, guid: df75fcefb4324834e837e79cbaa1b5e2, type: 2}
   m_SubsetIndices: 
   m_StaticBatchRoot: {fileID: 0}
   m_ProbeAnchor: {fileID: 0}
@@ -135,7 +135,7 @@ MeshRenderer:
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
   m_Materials:
-  - {fileID: 2100000, guid: d0fa225f19fe18141863e1ad8efbae7d, type: 2}
+  - {fileID: 2100000, guid: df75fcefb4324834e837e79cbaa1b5e2, type: 2}
   m_SubsetIndices: 
   m_StaticBatchRoot: {fileID: 0}
   m_ProbeAnchor: {fileID: 0}
@@ -164,7 +164,7 @@ MeshRenderer:
   m_LightProbeUsage: 1
   m_ReflectionProbeUsage: 1
   m_Materials:
-  - {fileID: 2100000, guid: d0fa225f19fe18141863e1ad8efbae7d, type: 2}
+  - {fileID: 2100000, guid: df75fcefb4324834e837e79cbaa1b5e2, type: 2}
   m_SubsetIndices: 
   m_StaticBatchRoot: {fileID: 0}
   m_ProbeAnchor: {fileID: 0}
