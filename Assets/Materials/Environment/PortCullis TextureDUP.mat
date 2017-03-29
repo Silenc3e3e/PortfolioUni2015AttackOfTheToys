@@ -6,7 +6,7 @@ Material:
   m_ObjectHideFlags: 0
   m_PrefabParentObject: {fileID: 0}
   m_PrefabInternal: {fileID: 0}
-  m_Name: PortCullis Texture
+  m_Name: PortCullis TextureDUP
   m_Shader: {fileID: 4800000, guid: dc0f4892a9b8a6143a316bc33a69be87, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 5
